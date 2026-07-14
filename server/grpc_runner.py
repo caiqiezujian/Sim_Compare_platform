@@ -50,7 +50,7 @@ def _send_audio(audio_file: str, lang: str, AsrRequest):
     yield AsrRequest(endFlag=True)
 
 
-def run_grpc(audio_file: str, endpoint: str, lang: str = "zh"):
+def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout: int = 60):
     """Run one endpoint and normalize its responses to the UI chunk contract."""
     import grpc
     from .grpc_info import asr_pb2_grpc
@@ -60,7 +60,7 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh"):
     started = time.monotonic()
     with grpc.insecure_channel(endpoint) as channel:
         stub = asr_pb2_grpc.AsrServiceStub(channel)
-        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest)):
+        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest), timeout=timeout):
             payload = getattr(response, "data", None)
             if not payload:
                 continue
@@ -85,4 +85,6 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh"):
                 item["logs"].append(f"MT final · returned_at={received_at}ms")
             item["logs"].insert(0, f"grpc response · sn={result.get('sn', '-')}")
             item["raw"] = result
+    if not chunks:
+        raise RuntimeError(f"gRPC 服务未返回有效 data: {endpoint}")
     return sorted(chunks.values(), key=lambda row: (row["start"], row["end"]))

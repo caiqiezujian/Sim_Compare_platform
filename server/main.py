@@ -5,6 +5,7 @@ asr_pb2.py/asr_pb2_grpc.py files next to this module to enable the real runner.
 """
 import asyncio
 import json
+import logging
 import os
 import secrets
 import shutil
@@ -19,6 +20,7 @@ from fastapi.responses import JSONResponse
 
 APP_DIR = Path(__file__).resolve().parent
 RUNS: Dict[str, dict] = {}
+logger = logging.getLogger("simcompare")
 
 app = FastAPI(title="SimCompare API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -44,8 +46,13 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
         if real_grpc and systems:
             from .grpc_runner import run_grpc
             lang = "en" if direction == "en2zh" else "zh"
-            left = await asyncio.to_thread(run_grpc, video_path, systems[0].get("url", ""), lang)
-            right = await asyncio.to_thread(run_grpc, video_path, systems[1].get("url", ""), lang) if len(systems) > 1 else left
+            run["progress"] = 20
+            left_task = asyncio.to_thread(run_grpc, video_path, systems[0].get("url", ""), lang)
+            right_task = asyncio.to_thread(run_grpc, video_path, systems[1].get("url", ""), lang) if len(systems) > 1 else None
+            if right_task:
+                left, right = await asyncio.gather(left_task, right_task)
+            else:
+                left, right = await left_task, []
             run["progress"] = 100
             run["completed_chunks"] = max(len(left), len(right))
             run["status"] = "completed"
@@ -68,6 +75,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
     except Exception as exc:
         run["status"] = "failed"
         run["error"] = str(exc)
+        logger.exception("run %s failed", run_id)
     finally:
         if os.path.exists(video_path):
             os.remove(video_path)

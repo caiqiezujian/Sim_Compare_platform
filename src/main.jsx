@@ -112,7 +112,7 @@ function App() {
         } else if (run.status === 'failed') {
           setRunning(false)
           setServerRunId(null)
-          notify('任务执行失败，已保留当前结果')
+          notify(`任务执行失败：${run.error || '请查看后端窗口日志'}`)
         }
       } catch {
         if (!disposed) {

@@ -1,9 +1,9 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Activity, AudioLines, Check, ChevronDown, CircleHelp, Clock3, Copy, FileAudio,
+  AudioLines, Check, ChevronDown, CircleHelp, Clock3, Copy, FileAudio,
   FileVideo, FolderOpen, GitCompareArrows, Headphones, History, Info, Languages,
-  Link2, ListFilter, LoaderCircle, Logs, Menu, Minus, Pause, Play, Plus, Radio,
+  Link2, ListFilter, LoaderCircle, Logs, Menu, Minus, Pause, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, TerminalSquare,
   UploadCloud, Volume2, X, Zap
 } from 'lucide-react'
@@ -31,15 +31,11 @@ function formatTime(ms) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`
 }
 
-function eventStamp(item, side, kind, index) {
-  const explicit = kind === 'asr'
-    ? item.asrTime ?? item.asr_time ?? item.asrReturnedAt ?? item.asr_returned_at
-    : item.mtTime ?? item.mt_time ?? item.mtReturnedAt ?? item.mt_returned_at
+function eventStamp(item, side, index) {
+  const explicit = item.asrTime ?? item.asr_time ?? item.asrReturnedAt ?? item.asr_returned_at
   if (Number.isFinite(Number(explicit))) return Number(explicit)
-  const base = kind === 'asr' ? item.start : item.end
   const sideOffset = side === 'right' ? 260 : 0
-  const kindOffset = kind === 'mt' ? 420 : 0
-  return base + sideOffset + kindOffset + (index % 3) * 70
+  return (item.start || 0) + sideOffset + (index % 3) * 70
 }
 
 function buildTimelineEvents(leftItems, rightItems, query) {
@@ -47,23 +43,15 @@ function buildTimelineEvents(leftItems, rightItems, query) {
   const rows = []
   const append = (side, items) => {
     items.forEach((item, index) => {
-      const events = [
-        { kind: 'asr', label: 'ASR', meta: 'transcript', icon: <AudioLines size={12} /> },
-        { kind: 'mt',  label: 'MT',  meta: 'translation', icon: <Languages size={12} /> },
-      ]
-      events.forEach(event => {
-        if (q && !`${item.asr} ${item.mt}`.toLowerCase().includes(q)) return
-        rows.push({
-          id: `${side}-${item.id}-${event.kind}`,
-          side,
-          kind: event.kind,
-          label: event.label,
-          meta: event.meta,
-          icon: event.icon,
-          item,
-          chunkIndex: index + 1,
-          stamp: eventStamp(item, side, event.kind, index),
-        })
+      if (q && !`${item.asr} ${item.mt}`.toLowerCase().includes(q)) return
+      rows.push({
+        id: `${side}-${item.id}`,
+        side,
+        kind: 'bundle',
+        label: 'ASR + MT',
+        item,
+        chunkIndex: index + 1,
+        stamp: eventStamp(item, side, index),
       })
     })
   }
@@ -214,7 +202,7 @@ function App() {
         <div className="side-label service-label">SERVICES</div>
         {systems.map((system, index) => <button key={system.id} className={`service-item ${selectedSystem === system.id ? 'selected' : ''}`} onClick={() => setSelectedSystem(system.id)}><span className={`service-dot ${system.color}`} /><span className="service-copy"><strong>{system.label}</strong><small>{system.url}</small></span><span className={`status-pip ${index === 1 ? 'warning' : ''}`} /></button>)}
         <button className="add-service" onClick={() => setShowSystemModal(true)}><Plus size={15} /> 添加服务地址</button>
-        <div className="sidebar-bottom"><div className="side-label">CURRENT RUN</div><div className="run-mini"><div className="run-icon"><Radio size={15} /></div><div><strong>demo_20260714_01</strong><small>6 chunks · 00:14.600</small></div><span className="mini-live" /></div><div className="side-foot"><span><Activity size={13} /> v0.1.0</span><span>API <span className="api-dot" /></span></div></div>
+        <div className="sidebar-foot"><span>v0.1.0</span><span>API <span className="api-dot" /></span></div>
       </aside>
 
       <main className="main-content">
@@ -227,7 +215,7 @@ function App() {
 
         <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 00:14.600 · 16 kHz mono</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
 
-        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="system-head left-head"><span className="system-badge cyan">A</span><div><strong>线上稳定版</strong><small>10.185.1.62:7860</small></div><span className="latency">avg 0.94s</span></div><div className="center-spine-head"><span>EVENT / RETURN TIME</span></div><div className="system-head right-head"><span className="system-badge violet">B</span><div><strong>候选实验版</strong><small>10.185.1.63:7860</small></div><span className="latency">avg 1.08s</span></div></div><div className="timeline-list">{timelineEvents.map((event, index) => <TimelineEventRow key={event.id} event={event} isLast={index === timelineEvents.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} />)}</div>{timelineEvents.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 按 gRPC 真实返回时间排序,左右两侧事件自然交错;空白行表示该时刻另一侧暂无事件</span></div></section>
+        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR time</span></div><div className="spacer" /><div className="axis-label">ASR TIME / BUNDLE</div><div className="spacer" /><div className="group right"><span className="lat">ASR time</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list">{timelineEvents.map((event, index) => <TimelineEventRow key={event.id} event={event} isLast={index === timelineEvents.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} />)}</div>{timelineEvents.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按 ASR 时间定位；翻译没有独立时间戳时合并展示在同一个 chunk 卡片内</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{selectedChunk.replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> 原始 JSON</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> STREAM LOG</span></div><div className="log-window">{(selected?.logs || []).map((log, index) => <div className="log-line" key={log}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index === 2 ? 'accent' : ''}`}>{index === 2 ? 'RESULT' : 'INFO'}</span><span>{log}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CHUNK AUDIO</span><span className="audio-format">WAV · 16 kHz</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selected?.audio || 'chunk-03.wav'}</strong><small>{((selected?.end - selected?.start || 1260) / 1000).toFixed(2)}s · mono · 40.3 KB</small></div><button className="play-circle" onClick={() => notify('音频预览已加入播放队列')}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="audio-controls"><button className="audio-play" onClick={() => notify('音频预览已加入播放队列')}><Play size={13} fill="currentColor" /> 试听 chunk</button><span>{formatTime(selected?.start || 0)}</span><span>{formatTime(selected?.end || 0)}</span><Volume2 size={14} /></div></div></div></section>
       </main>
@@ -239,56 +227,45 @@ function App() {
 
 function TimelineEventRow({ event, isLast, selectedChunk, selectedSide, onSelect }) {
   if (!event) return null
-  const { side, kind, label, item, chunkIndex, stamp } = event
+  const { side, item, chunkIndex, stamp } = event
   const isSelected = selectedChunk === item.id && selectedSide === side
-  const ready = kind === 'asr' ? Boolean(item.asr) : Boolean(item.mt)
-  const text = kind === 'asr' ? item.asr : item.mt
+  const asrReady = Boolean(item.asr)
+  const mtReady = Boolean(item.mt)
   const delay = Math.max(0, stamp - (item.start || 0))
-  return (
-    <div className={`timeline-row event-row ${side}-only ${kind}-event ${isSelected ? 'selected' : ''}`}>
-      <div className="timeline-side-slot">{side === 'left' ? (
-        <div className={`result-cell ${side}-result ${kind}-result ${isSelected ? 'focus' : ''}`} onClick={() => onSelect(item.id, side)}>
-          <div className="result-head">
-            <div className="result-tags">
-              <span className={`result-tag ${kind}`}>{label}</span>
-              <span className="result-time">+{(delay / 1000).toFixed(2)}s</span>
-            </div>
-            <span className={`result-state ${ready ? 'final' : 'pending'}`}>
-              {ready ? <><Check size={12} /> final</> : <><LoaderCircle size={12} className="spin" /> 等待</>}
-            </span>
-          </div>
-          {ready ? (
-            <p className={`result-text ${kind}-text`}>{text}</p>
-          ) : (
-            <div className="result-placeholder"><LoaderCircle size={14} className="spin" /><span>{label} 尚未返回</span></div>
-          )}
-          <div className="event-meta"><span>CHUNK {String(chunkIndex).padStart(2, '0')}</span></div>
+  const card = (
+    <div className={`result-cell ${side}-result bundle-result ${isSelected ? 'focus' : ''}`} onClick={() => onSelect(item.id, side)}>
+      <div className="result-head">
+        <div className="result-tags">
+          <span className="result-tag asr">ASR</span>
+          <span className="result-tag mt">MT</span>
+          <span className="result-time">+{(delay / 1000).toFixed(2)}s</span>
         </div>
-      ) : null}</div>
+        <span className={`result-state ${asrReady ? 'final' : 'pending'}`}>
+          {asrReady ? <><Check size={12} /> final</> : <><LoaderCircle size={12} className="spin" /> 等待</>}
+        </span>
+      </div>
+      <div className="bundle-lines">
+        <div className="bundle-line asr-line">
+          <span className="bundle-label"><AudioLines size={12} /> ASR</span>
+          {asrReady ? <p className="result-text asr-text">{item.asr}</p> : <div className="result-placeholder"><LoaderCircle size={14} className="spin" /><span>ASR 尚未返回</span></div>}
+        </div>
+        <div className="bundle-line mt-line">
+          <span className="bundle-label"><Languages size={12} /> MT</span>
+          {mtReady ? <p className="result-text mt-text">{item.mt}</p> : <div className="result-placeholder"><span>翻译随本次 ASR 包展示，暂无独立时间戳</span></div>}
+        </div>
+      </div>
+      <div className="event-meta"><span>CHUNK {String(chunkIndex).padStart(2, '0')}</span><span>{formatTime(item.start || 0)} — {formatTime(item.end || 0)}</span></div>
+    </div>
+  )
+  return (
+    <div className={`timeline-row event-row ${side}-only bundle-event ${isSelected ? 'selected' : ''}`}>
+      <div className="timeline-side-slot">{side === 'left' ? card : null}</div>
       <div className="center-spine">
         <span className="event-time">{formatTime(stamp)}</span>
-        <span className={`spine-dot ${kind} ${side} ${!ready ? 'pending' : ''}`} />
+        <span className={`spine-dot bundle ${side} ${!asrReady ? 'pending' : ''}`} />
         {!isLast && <i />}
       </div>
-      <div className="timeline-side-slot">{side === 'right' ? (
-        <div className={`result-cell ${side}-result ${kind}-result ${isSelected ? 'focus' : ''}`} onClick={() => onSelect(item.id, side)}>
-          <div className="result-head">
-            <div className="result-tags">
-              <span className={`result-tag ${kind}`}>{label}</span>
-              <span className="result-time">+{(delay / 1000).toFixed(2)}s</span>
-            </div>
-            <span className={`result-state ${ready ? 'final' : 'pending'}`}>
-              {ready ? <><Check size={12} /> final</> : <><LoaderCircle size={12} className="spin" /> 等待</>}
-            </span>
-          </div>
-          {ready ? (
-            <p className={`result-text ${kind}-text`}>{text}</p>
-          ) : (
-            <div className="result-placeholder"><LoaderCircle size={14} className="spin" /><span>{label} 尚未返回</span></div>
-          )}
-          <div className="event-meta"><span>CHUNK {String(chunkIndex).padStart(2, '0')}</span></div>
-        </div>
-      ) : null}</div>
+      <div className="timeline-side-slot">{side === 'right' ? card : null}</div>
     </div>
   )
 }

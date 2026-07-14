@@ -81,7 +81,7 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh"):
                 item["mt"] = result["part_2_mt"]
             if result.get("mt_type") == 1 and result.get("mt_ws"):
                 item["mt"] = result["mt_ws"][0]["cw"][0].get("w", item["mt"])
-                item["mt_time"] = received_at
+                item["mt_time"] = item.get("asr_time", received_at)
                 item["logs"].append(f"MT final · returned_at={received_at}ms")
             item["logs"].insert(0, f"grpc response · sn={result.get('sn', '-')}")
             item["raw"] = result

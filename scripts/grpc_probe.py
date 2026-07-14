@@ -27,7 +27,7 @@ from server.grpc_info.asr_pb2 import AsrRequest
 SAMPLE_RATE = 16000
 SAMPLE_WIDTH = 2
 CHANNELS = 1
-DEFAULT_CHUNK_BYTES = 400 * 16
+DEFAULT_CHUNK_BYTES = 400 * 16 * SAMPLE_WIDTH
 
 
 def log(message):

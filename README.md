@@ -2,9 +2,9 @@
 
 SimCompare 是一个用于调试同传 S2TT / gRPC 服务的本地 Web 平台。它支持上传音频或视频，调用一个或两个 gRPC 服务，并在时间轴上查看每个返回包里的 ASR、翻译、日志和 chunk 音频信息。
 
-当前版本的时间轴按 gRPC 返回包组织：如果同一个返回包里同时包含 ASR 和 MT，前端会把它们展示在同一个 chunk 卡片里。因为当前 MT 没有独立时间戳，所以暂不单独拆成 MT 时间轴事件。
+当前版本的时间轴按 gRPC 返回包组织：时间轴位置使用 ASR 音频结束时间 `ed`。如果同一个返回包里同时包含 ASR 和 MT，前端会把它们展示在同一个 chunk 卡片里。因为当前 MT 没有独立时间戳，所以暂不单独拆成 MT 时间轴事件。
 
-真实 gRPC 模式下，后端会边收到服务返回边更新任务缓存，前端轮询时会增量刷新时间轴，不需要等整段音频全部跑完才看到结果。
+真实 gRPC 模式下，后端会边收到服务返回边更新任务缓存，前端轮询时会增量刷新时间轴，不需要等整段音频全部跑完才看到结果。点击前端“重置”会取消当前后端任务并停止继续轮询旧 run。
 
 ## 项目结构
 
@@ -198,13 +198,21 @@ python scripts\grpc_probe.py --endpoint 10.185.1.71:16552 --silence-seconds 3 --
 前端字段映射：
 
 ```text
-sn       -> chunk 编号来源
-bg / ed  -> ASR 时间范围
+sn/bg/ed -> chunk key 来源；sn=0、bg=0 都是有效值
+bg / ed  -> ASR 时间范围；时间轴按 ed 定位
 ws       -> ASR 文本
 words    -> 字级时间戳
 mt_ws    -> 翻译文本
 hold_n   -> debug log
 raw      -> 原始 JSON
+```
+
+后端同时保留两类时间：
+
+```text
+asr_end_time / asr_time      ASR 音频结束时间，来自 ed，用于时间轴
+asr_returned_at             后端收到该 gRPC 包的相对时间，用于 debug
+mt_returned_at              后端收到最终 MT 的相对时间，用于 debug
 ```
 
 当前 MT 没有独立时间戳，所以 MT 会和同一个返回包里的 ASR 合并展示。
@@ -224,6 +232,7 @@ RUNS[run_id]["right"]
 GET  /api/health
 POST /api/runs
 GET  /api/runs/{run_id}
+POST /api/runs/{run_id}/cancel
 GET  /api/runs/{run_id}/chunks
 ```
 

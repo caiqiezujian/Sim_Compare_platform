@@ -32,10 +32,9 @@ function formatTime(ms) {
 }
 
 function eventStamp(item, side, index) {
-  const explicit = item.asrTime ?? item.asr_time ?? item.asrReturnedAt ?? item.asr_returned_at
+  const explicit = item.asrEndTime ?? item.asr_end_time ?? item.end ?? item.ed ?? item.asr_time
   if (Number.isFinite(Number(explicit))) return Number(explicit)
-  const sideOffset = side === 'right' ? 260 : 0
-  return (item.start || 0) + sideOffset + (index % 3) * 70
+  return Number(item.start || 0)
 }
 
 function buildTimelineEvents(leftItems, rightItems, query) {
@@ -111,6 +110,10 @@ function App() {
           setRunning(false)
           setServerRunId(null)
           notify('gRPC 对比任务完成')
+        } else if (run.status === 'cancelled') {
+          setRunning(false)
+          setServerRunId(null)
+          notify('任务已停止')
         } else if (run.status === 'failed') {
           setRunning(false)
           setServerRunId(null)
@@ -156,7 +159,34 @@ function App() {
     setSystems(items => items.map(system => system.id === id ? { ...system, url } : system))
   }
 
+  const cancelServerRun = async (runId) => {
+    if (!runId) return
+    try {
+      await fetch(`${API_BASE}/api/runs/${runId}/cancel`, { method: 'POST' })
+    } catch {
+      // The UI should still stop polling even if the backend is already gone.
+    }
+  }
+
+  const resetRun = () => {
+    const activeRunId = serverRunId
+    setRunning(false)
+    setServerRunId(null)
+    setProgress(0)
+    setVideo(null)
+    setLeftItems([])
+    setRightItems([])
+    setSelectedChunk('')
+    setSelectedSide('left')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    cancelServerRun(activeRunId)
+    notify(activeRunId ? '已停止并重置当前任务' : '已重置当前任务')
+  }
+
   const startRun = async () => {
+    if (serverRunId) {
+      await cancelServerRun(serverRunId)
+    }
     setServerRunId(null)
     setRunning(true)
     setProgress(8)
@@ -218,7 +248,7 @@ function App() {
       </aside>
 
       <main className="main-content">
-        <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={() => { setVideo(null); setProgress(0); setLeftItems(demoItems); setRightItems(demoItems); notify('已重置当前任务') }}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
+        <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
 
         <section className="control-grid">
           <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择媒体文件</h3><p>上传视频，后端会按音频 chunk 发送至服务。</p></div></div><FileVideo size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept="video/*,audio/*" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 MP4 / MOV / WAV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button></div>
@@ -227,7 +257,7 @@ function App() {
 
         <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 00:14.600 · 16 kHz mono</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
 
-        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR time</span></div><div className="spacer" /><div className="axis-label">ASR TIME / BUNDLE</div><div className="spacer" /><div className="group right"><span className="lat">ASR time</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list">{timelineEvents.map((event, index) => <TimelineEventRow key={event.id} event={event} isLast={index === timelineEvents.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} />)}</div>{timelineEvents.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按 ASR 时间定位；翻译没有独立时间戳时合并展示在同一个 chunk 卡片内</span></div></section>
+        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ASR END / BUNDLE</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list">{timelineEvents.map((event, index) => <TimelineEventRow key={event.id} event={event} isLast={index === timelineEvents.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} />)}</div>{timelineEvents.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按 ASR 结束时间定位；翻译没有独立时间戳时合并展示在同一个 chunk 卡片内</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{selectedChunk.replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> 原始 JSON</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> STREAM LOG</span></div><div className="log-window">{(selected?.logs || []).map((log, index) => <div className="log-line" key={log}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index === 2 ? 'accent' : ''}`}>{index === 2 ? 'RESULT' : 'INFO'}</span><span>{log}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CHUNK AUDIO</span><span className="audio-format">WAV · 16 kHz</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selected?.audio || 'chunk-03.wav'}</strong><small>{((selected?.end - selected?.start || 1260) / 1000).toFixed(2)}s · mono · 40.3 KB</small></div><button className="play-circle" onClick={() => notify('音频预览已加入播放队列')}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="audio-controls"><button className="audio-play" onClick={() => notify('音频预览已加入播放队列')}><Play size={13} fill="currentColor" /> 试听 chunk</button><span>{formatTime(selected?.start || 0)}</span><span>{formatTime(selected?.end || 0)}</span><Volume2 size={14} /></div></div></div></section>
       </main>
@@ -243,14 +273,13 @@ function TimelineEventRow({ event, isLast, selectedChunk, selectedSide, onSelect
   const isSelected = selectedChunk === item.id && selectedSide === side
   const asrReady = Boolean(item.asr)
   const mtReady = Boolean(item.mt)
-  const delay = Math.max(0, stamp - (item.start || 0))
   const card = (
     <div className={`result-cell ${side}-result bundle-result ${isSelected ? 'focus' : ''}`} onClick={() => onSelect(item.id, side)}>
       <div className="result-head">
         <div className="result-tags">
           <span className="result-tag asr">ASR</span>
           <span className="result-tag mt">MT</span>
-          <span className="result-time">+{(delay / 1000).toFixed(2)}s</span>
+          <span className="result-time">end {formatTime(stamp)}</span>
         </div>
         <span className={`result-state ${asrReady ? 'final' : 'pending'}`}>
           {asrReady ? <><Check size={12} /> final</> : <><LoaderCircle size={12} className="spin" /> 等待</>}

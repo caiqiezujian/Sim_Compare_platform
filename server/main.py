@@ -42,6 +42,9 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
     run = RUNS[run_id]
     run["status"] = "running"
     try:
+        def should_stop():
+            return bool(run.get("cancelled"))
+
         real_grpc = os.getenv("SIMCOMPARE_REAL_GRPC", "0") == "1"
         if real_grpc and systems:
             from .grpc_runner import run_grpc
@@ -49,6 +52,8 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             run["progress"] = 20
 
             def update_side(side: str, rows: list):
+                if should_stop():
+                    return
                 run[side] = rows
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
                 run["progress"] = min(95, max(run.get("progress", 20), 20 + run["completed_chunks"] * 3))
@@ -60,6 +65,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 lang,
                 None,
                 lambda rows: update_side("left", rows),
+                should_stop,
             )
             right_task = asyncio.to_thread(
                 run_grpc,
@@ -68,11 +74,16 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 lang,
                 None,
                 lambda rows: update_side("right", rows),
+                should_stop,
             ) if len(systems) > 1 else None
             if right_task:
                 left, right = await asyncio.gather(left_task, right_task)
             else:
                 left, right = await left_task, []
+            if should_stop():
+                run["status"] = "cancelled"
+                run["left"], run["right"] = left, right
+                return
             run["progress"] = 100
             run["completed_chunks"] = max(len(left), len(right))
             run["status"] = "completed"
@@ -81,6 +92,9 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
 
         # Safe local fallback while generated protobuf modules or real mode are absent.
         for index in range(1, 7):
+            if should_stop():
+                run["status"] = "cancelled"
+                return
             await asyncio.sleep(0.32)
             run["progress"] = round(index / 6 * 100)
             run["completed_chunks"] = index
@@ -93,9 +107,12 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
         canary[3]["mt"] = "From this point, the outputs from the systems are slightly different."
         run["right"] = canary
     except Exception as exc:
-        run["status"] = "failed"
-        run["error"] = str(exc)
-        logger.exception("run %s failed", run_id)
+        if run.get("cancelled"):
+            run["status"] = "cancelled"
+        else:
+            run["status"] = "failed"
+            run["error"] = str(exc)
+            logger.exception("run %s failed", run_id)
     finally:
         if os.path.exists(video_path):
             os.remove(video_path)
@@ -117,7 +134,7 @@ async def create_run(background_tasks: BackgroundTasks, video: UploadFile = File
     except json.JSONDecodeError:
         parsed_systems = []
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
-    RUNS[run_id] = {"run_id": run_id, "status": "queued", "progress": 0, "completed_chunks": 0, "systems": parsed_systems, "direction": direction}
+    RUNS[run_id] = {"run_id": run_id, "status": "queued", "progress": 0, "completed_chunks": 0, "systems": parsed_systems, "direction": direction, "cancelled": False}
     background_tasks.add_task(process_run, run_id, temp.name, parsed_systems, direction)
     return {"run_id": run_id, "status": "queued"}
 
@@ -128,6 +145,17 @@ async def get_run(run_id: str):
     if not run:
         return JSONResponse(status_code=404, content={"detail": "run not found"})
     return run
+
+
+@app.post("/api/runs/{run_id}/cancel")
+async def cancel_run(run_id: str):
+    run = RUNS.get(run_id)
+    if not run:
+        return JSONResponse(status_code=404, content={"detail": "run not found"})
+    run["cancelled"] = True
+    if run.get("status") in {"queued", "running"}:
+        run["status"] = "cancelling"
+    return {"run_id": run_id, "status": run.get("status"), "cancelled": True}
 
 
 @app.get("/api/runs/{run_id}/chunks")

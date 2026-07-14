@@ -47,8 +47,28 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             from .grpc_runner import run_grpc
             lang = "en" if direction == "en2zh" else "zh"
             run["progress"] = 20
-            left_task = asyncio.to_thread(run_grpc, video_path, systems[0].get("url", ""), lang)
-            right_task = asyncio.to_thread(run_grpc, video_path, systems[1].get("url", ""), lang) if len(systems) > 1 else None
+
+            def update_side(side: str, rows: list):
+                run[side] = rows
+                run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
+                run["progress"] = min(95, max(run.get("progress", 20), 20 + run["completed_chunks"] * 3))
+
+            left_task = asyncio.to_thread(
+                run_grpc,
+                video_path,
+                systems[0].get("url", ""),
+                lang,
+                None,
+                lambda rows: update_side("left", rows),
+            )
+            right_task = asyncio.to_thread(
+                run_grpc,
+                video_path,
+                systems[1].get("url", ""),
+                lang,
+                None,
+                lambda rows: update_side("right", rows),
+            ) if len(systems) > 1 else None
             if right_task:
                 left, right = await asyncio.gather(left_task, right_task)
             else:

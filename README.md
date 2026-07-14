@@ -4,6 +4,8 @@ SimCompare 是一个用于调试同传 S2TT / gRPC 服务的本地 Web 平台。
 
 当前版本的时间轴按 gRPC 返回包组织：如果同一个返回包里同时包含 ASR 和 MT，前端会把它们展示在同一个 chunk 卡片里。因为当前 MT 没有独立时间戳，所以暂不单独拆成 MT 时间轴事件。
 
+真实 gRPC 模式下，后端会边收到服务返回边更新任务缓存，前端轮询时会增量刷新时间轴，不需要等整段音频全部跑完才看到结果。
+
 ## 项目结构
 
 ```text
@@ -12,6 +14,7 @@ D:\Sim_Compare_platform
 ├─ server\              后端 FastAPI
 ├─ server\grpc_info\    gRPC protobuf/stub 文件
 ├─ server\grpc_runner.py 真实 gRPC 调用适配器
+├─ scripts\grpc_probe.py 后端直连 gRPC 测试脚本
 └─ README.md
 ```
 
@@ -99,6 +102,18 @@ B: 服务B的 ip:port
 
 上传 MP4 / MOV 时，后端会尝试用 `ffmpeg` 转成 16kHz mono WAV。如果本机没有 `ffmpeg`，建议先手动准备 WAV 文件。
 
+后端发送音频时按 0.4 秒一个 chunk 发送。对于 16kHz / mono / 16-bit PCM，一个 0.4 秒 chunk 是：
+
+```text
+16000 samples/s * 0.4s * 2 bytes = 12800 bytes
+```
+
+gRPC deadline 会根据音频时长动态计算：
+
+```text
+max(60 秒, 音频时长 * 2.5 + 30 秒)
+```
+
 ## gRPC 协议
 
 当前服务使用双向流接口：
@@ -121,6 +136,44 @@ protobuf/stub 已放在：
 server\grpc_info\asr_pb2.py
 server\grpc_info\asr_pb2_grpc.py
 ```
+
+方向参数映射：
+
+```text
+zh2en -> lang = "zh"
+en2zh -> lang = "en"
+```
+
+## 后端直连测试
+
+如果前端不确定是否有问题，可以先用后端测试脚本直接打 gRPC 服务：
+
+```powershell
+cd D:\Sim_Compare_platform
+python scripts\grpc_probe.py --endpoint 10.185.1.71:16552 --audio Dataflow_001.wav --lang en
+```
+
+没有音频时，可以先用静音包测试连通性：
+
+```powershell
+python scripts\grpc_probe.py --endpoint 10.185.1.71:16552 --silence-seconds 3 --lang en
+```
+
+脚本会打印：
+
+```text
+[check] channel ready
+[send] session ...
+[send] audio chunk ...
+[recv #...] ...
+[raw] ...
+[json] ...
+[asr] ...
+[mt] ...
+[error] ...
+```
+
+如果 `grpc_probe.py` 能收到 `[raw]`、`[asr]`、`[mt]`，说明 gRPC 服务、协议和音频链路基本是通的。此时如果 Web 页面异常，优先看 FastAPI 任务状态、前端轮询和返回数据映射。
 
 ## 返回包映射
 
@@ -155,6 +208,15 @@ raw      -> 原始 JSON
 ```
 
 当前 MT 没有独立时间戳，所以 MT 会和同一个返回包里的 ASR 合并展示。
+
+运行中返回的 chunk 会被增量写入：
+
+```text
+RUNS[run_id]["left"]
+RUNS[run_id]["right"]
+```
+
+前端会持续请求 `/api/runs/{run_id}/chunks` 刷新时间轴。
 
 ## API
 
@@ -208,5 +270,7 @@ $env:SIMCOMPARE_REAL_GRPC="1"
 ```
 
 如果只配置了一个服务，建议先把 B 地址留空，避免误请求旧地址。
+
+如果页面一直显示“运行中”，先用 `scripts\grpc_probe.py` 直连同一个音频文件。如果 probe 也卡住，问题在 gRPC 服务或音频流；如果 probe 正常，检查后端窗口里 `POST /api/runs` 后的异常日志。
 
 如果服务需要 TLS、token 或 metadata，当前代码还没有接入，需要先补后端连接参数。

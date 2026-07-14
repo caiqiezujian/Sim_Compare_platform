@@ -12,8 +12,8 @@ import './styles.css'
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
 const initialSystems = [
-  { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.62:7860', language: 'zh → en', color: 'cyan', enabled: true },
-  { id: 'system-b', label: '候选实验版', name: 'S2TT · Canary', url: '10.185.1.63:7860', language: 'zh → en', color: 'violet', enabled: true },
+  { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.71:16552', language: 'zh → en', color: 'cyan', enabled: true },
+  { id: 'system-b', label: '候选实验版', name: 'S2TT · Canary', url: '', language: 'zh → en', color: 'violet', enabled: true },
 ]
 
 const demoItems = [
@@ -101,11 +101,13 @@ function App() {
         const run = await response.json()
         if (disposed) return
         setProgress(run.progress || 0)
-        if (run.status === 'completed') {
-          const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
+        const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
+        if (chunksResponse.ok) {
           const chunks = await chunksResponse.json()
-          if (chunks.left?.length) setLeftItems(chunks.left)
-          if (chunks.right?.length) setRightItems(chunks.right)
+          if (Array.isArray(chunks.left)) setLeftItems(chunks.left)
+          if (Array.isArray(chunks.right)) setRightItems(chunks.right)
+        }
+        if (run.status === 'completed') {
           setRunning(false)
           setServerRunId(null)
           notify('gRPC 对比任务完成')
@@ -160,10 +162,20 @@ function App() {
     setProgress(8)
     if (!video) {
       notify('当前使用演示视频，可直接查看交互')
+      setRunning(false)
       return
     }
     try {
       const enabled = systems.slice(0, 2).filter(system => system.enabled && system.url.trim())
+      if (!enabled.length) {
+        notify('请至少填写一个 gRPC 服务地址')
+        setRunning(false)
+        setProgress(0)
+        return
+      }
+      setLeftItems([])
+      setRightItems([])
+      setSelectedSide('left')
       const form = new FormData()
       form.append('video', video)
       form.append('systems', JSON.stringify(enabled))

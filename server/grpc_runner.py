@@ -15,7 +15,9 @@ import wave
 from pathlib import Path
 
 SAMPLE_RATE = 16000
-SEND_RANGE = 400 * 16
+BYTES_PER_SAMPLE = 2
+SEND_SAMPLES = 400 * 16
+SEND_BYTES = SEND_SAMPLES * BYTES_PER_SAMPLE
 
 
 def _audio_samples(path: str):
@@ -31,36 +33,46 @@ def _audio_samples(path: str):
                 os.remove(temp_wav)
             raise RuntimeError("视频转音频需要 ffmpeg；也可以先上传 16kHz WAV 文件") from exc
     with wave.open(source, "rb") as wav:
-        channels, sample_width, rate, frames = wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.readframes(wav.getnframes())
+        channels = wav.getnchannels()
+        sample_width = wav.getsampwidth()
+        rate = wav.getframerate()
+        frame_count = wav.getnframes()
+        frames = wav.readframes(frame_count)
     if channels != 1 or sample_width != 2 or rate != SAMPLE_RATE:
         raise RuntimeError("WAV 输入需要是 16kHz、16-bit、mono")
     if temp_wav and os.path.exists(temp_wav):
         os.remove(temp_wav)
-    return frames
+    return frames, frame_count / float(rate)
 
 
 def _send_audio(audio_file: str, lang: str, AsrRequest):
     sid = int(time.time() * 1e6) + secrets.randbelow(1000)
     conference_id = str(secrets.randbits(32))
     yield AsrRequest(sessionParam={"sid": f"Beijing-TSC-test-{sid}", "lang": lang, "latency": "long", "userinfo": json.dumps({"conferenceType": "Caption", "conferenceId": conference_id, "source": 2, "talkId": str(secrets.randbits(32)), "userId": "simcompare", "save": 1})})
-    pcm = _audio_samples(audio_file)
-    for index in range(math.ceil(len(pcm) / SEND_RANGE)):
-        yield AsrRequest(samples=pcm[index * SEND_RANGE:(index + 1) * SEND_RANGE])
+    pcm, _ = _audio_samples(audio_file)
+    for index in range(math.ceil(len(pcm) / SEND_BYTES)):
+        yield AsrRequest(samples=pcm[index * SEND_BYTES:(index + 1) * SEND_BYTES])
         time.sleep(0.4)
     yield AsrRequest(endFlag=True)
 
 
-def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout: int = 60):
+def _sorted_chunks(chunks: dict):
+    return sorted(chunks.values(), key=lambda row: (row["start"], row["end"], row["id"]))
+
+
+def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout=None, on_update=None):
     """Run one endpoint and normalize its responses to the UI chunk contract."""
     import grpc
     from .grpc_info import asr_pb2_grpc
     from .grpc_info.asr_pb2 import AsrRequest
 
+    _, duration = _audio_samples(audio_file)
+    deadline = timeout or max(60, int(duration * 2.5 + 30))
     chunks = {}
     started = time.monotonic()
     with grpc.insecure_channel(endpoint) as channel:
         stub = asr_pb2_grpc.AsrServiceStub(channel)
-        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest), timeout=timeout):
+        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest), timeout=deadline):
             payload = getattr(response, "data", None)
             if not payload:
                 continue
@@ -85,6 +97,8 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout: int = 60
                 item["logs"].append(f"MT final · returned_at={received_at}ms")
             item["logs"].insert(0, f"grpc response · sn={result.get('sn', '-')}")
             item["raw"] = result
+            if on_update:
+                on_update(_sorted_chunks(chunks))
     if not chunks:
         raise RuntimeError(f"gRPC 服务未返回有效 data: {endpoint}")
-    return sorted(chunks.values(), key=lambda row: (row["start"], row["end"]))
+    return _sorted_chunks(chunks)

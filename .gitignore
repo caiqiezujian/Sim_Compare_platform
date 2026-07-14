@@ -1,5 +1,7 @@
-# ---------- Node / Vite ----------
+# ⚠️ 注意:本仓库刻意追踪 node_modules/(Windows-only,团队内免 npm install)
+# 任何跑 `npm install` 后,请勿把改动 commit 进去(用 `git checkout -- node_modules/` 还原)
 node_modules/
+# ---------- Node / Vite ----------
 dist/
 .vite/
 *.log

@@ -566,6 +566,8 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   position: absolute;
   left: 0;
   right: 0;
+  top: var(--row-top, 0px);
+  height: var(--row-height, auto);
   border-bottom: 0;
   background: transparent;
   z-index: 1;

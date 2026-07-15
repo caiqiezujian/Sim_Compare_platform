@@ -14,6 +14,8 @@ const TIMELINE_TOP_PADDING = 64
 const TIMELINE_BOTTOM_PADDING = 180
 const TIMELINE_PX_PER_SECOND = 84
 const TIMELINE_CARD_ANCHOR_Y = 58
+const TIMELINE_ROW_GAP = 14
+const TIMELINE_ROW_BASE_HEIGHT = 132
 
 const initialSystems = [
   { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.71:16552', language: 'zh → en', color: 'cyan', enabled: true },
@@ -77,13 +79,20 @@ function buildTimelineRows(leftItems, rightItems, query) {
 function buildTimelineLayout(rows) {
   if (!rows.length) return { rows: [], height: 360 }
   const maxStamp = Math.max(...rows.map(row => Number(row.stamp) || 0), 0)
-  const positionedRows = rows.map(row => ({
-    ...row,
-    top: TIMELINE_TOP_PADDING + Math.max(0, Number(row.stamp) || 0) / 1000 * TIMELINE_PX_PER_SECOND,
-  }))
+  // 累加 row.top:每个 row 高度按 max(left cell 数, right cell 数) 自适应,
+  // row 之间固定 gap。媒体时间只作为参考显示在中间 spine,不再作为像素级定位,
+  // 避免稠密 chunk(cell 高度 > 时间间距)时重叠。
+  let cursor = TIMELINE_TOP_PADDING
+  const positionedRows = rows.map(row => {
+    const cellRows = Math.max(row.left.length, row.right.length)
+    const rowHeight = TIMELINE_ROW_BASE_HEIGHT + Math.max(0, cellRows - 1) * 36
+    const positioned = { ...row, top: cursor, height: rowHeight }
+    cursor += rowHeight + TIMELINE_ROW_GAP
+    return positioned
+  })
   return {
     rows: positionedRows,
-    height: Math.max(360, TIMELINE_TOP_PADDING + maxStamp / 1000 * TIMELINE_PX_PER_SECOND + TIMELINE_BOTTOM_PADDING),
+    height: Math.max(360, cursor + TIMELINE_BOTTOM_PADDING - TIMELINE_ROW_GAP),
   }
 }
 
@@ -282,7 +291,7 @@ function App() {
 
         <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 00:14.600 · 16 kHz mono</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
 
-        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
+        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{selectedChunk.replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> 原始 JSON</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> STREAM LOG</span></div><div className="log-window">{(selected?.logs || []).map((log, index) => <div className="log-line" key={log}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index === 2 ? 'accent' : ''}`}>{index === 2 ? 'RESULT' : 'INFO'}</span><span>{log}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CHUNK AUDIO</span><span className="audio-format">WAV · 16 kHz</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selected?.audio || 'chunk-03.wav'}</strong><small>{((selected?.end - selected?.start || 1260) / 1000).toFixed(2)}s · mono · 40.3 KB</small></div><button className="play-circle" onClick={() => notify('音频预览已加入播放队列')}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="audio-controls"><button className="audio-play" onClick={() => notify('音频预览已加入播放队列')}><Play size={13} fill="currentColor" /> 试听 chunk</button><span>{formatTime(selected?.start || 0)}</span><span>{formatTime(selected?.end || 0)}</span><Volume2 size={14} /></div></div></div></section>
       </main>
@@ -325,14 +334,14 @@ function TimelineResultCard({ event, selectedChunk, selectedSide, onSelect }) {
   )
 }
 
-function TimelineEventRow({ row, isLast, selectedChunk, selectedSide, onSelect }) {
+function TimelineEventRow({ row, isLast, selectedChunk, selectedSide, onSelect, style }) {
   if (!row) return null
   const events = [...row.left, ...row.right]
   const isSelected = events.some(event => selectedChunk === event.item.id && selectedSide === event.side)
   const hasPending = events.some(event => !event.item.asr)
   const dotSide = row.left.length && row.right.length ? 'bundle' : row.right.length ? 'right' : 'left'
   return (
-    <div className={`timeline-row event-row time-row ${isSelected ? 'selected' : ''}`} style={{ top: `${row.top}px` }}>
+    <div className={`timeline-row event-row time-row ${isSelected ? 'selected' : ''}`} style={style}>
       <div className="timeline-side-slot">
         {row.left.map(event => <TimelineResultCard key={event.id} event={event} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={onSelect} />)}
       </div>

@@ -41,6 +41,22 @@ def demo_chunks():
     return [{"id": f"chunk-{i + 1:02d}", "start": start, "end": end, "asr": asr, "mt": mt, "status": "done" if i < 5 else "pending", "audio": f"chunk-{i + 1:02d}.wav", "logs": [f"audio stream {start / 1000:.2f}s — {end / 1000:.2f}s", "ASR final · hold_n=1", "MT final · latency 964ms"]} for i, (start, end, asr, mt) in enumerate(rows)]
 
 
+def error_chunk(side: str, endpoint: str, message: str):
+    return [{
+        "id": f"{side}-grpc-error",
+        "start": 0,
+        "end": 0,
+        "asr": f"{side.upper()} gRPC 连接失败",
+        "mt": message,
+        "status": "failed",
+        "audio": "",
+        "logs": [
+            f"endpoint={endpoint}",
+            message,
+        ],
+    }]
+
+
 async def process_run(run_id: str, video_path: str, systems: list, direction: str):
     run = RUNS[run_id]
     run["status"] = "running"
@@ -61,23 +77,32 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
                 run["progress"] = min(95, max(run.get("progress", 20), 20 + run["completed_chunks"] * 3))
 
+            def run_side(side: str, endpoint: str):
+                try:
+                    return run_grpc(
+                        video_path,
+                        endpoint,
+                        lang,
+                        None,
+                        lambda rows: update_side(side, rows),
+                        should_stop,
+                    )
+                except Exception as exc:
+                    message = str(exc)
+                    rows = error_chunk(side, endpoint, message)
+                    update_side(side, rows)
+                    run[f"{side}_error"] = message
+                    return rows
+
             left_task = asyncio.to_thread(
-                run_grpc,
-                video_path,
+                run_side,
+                "left",
                 systems[0].get("url", ""),
-                lang,
-                None,
-                lambda rows: update_side("left", rows),
-                should_stop,
             )
             right_task = asyncio.to_thread(
-                run_grpc,
-                video_path,
+                run_side,
+                "right",
                 systems[1].get("url", ""),
-                lang,
-                None,
-                lambda rows: update_side("right", rows),
-                should_stop,
             ) if len(systems) > 1 else None
             if right_task:
                 left, right = await asyncio.gather(left_task, right_task)
@@ -87,10 +112,15 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 run["status"] = "cancelled"
                 run["left"], run["right"] = left, right
                 return
+            run["left"], run["right"] = left, right
             run["progress"] = 100
             run["completed_chunks"] = max(len(left), len(right))
-            run["status"] = "completed"
-            run["left"], run["right"] = left, right
+            if run.get("left_error") or run.get("right_error"):
+                errors = [run.get("left_error"), run.get("right_error")]
+                run["error"] = " | ".join(error for error in errors if error)
+                run["status"] = "failed" if (run.get("left_error") and (not right_task or run.get("right_error"))) else "partial_completed"
+            else:
+                run["status"] = "completed"
             return
 
         # Safe local fallback while generated protobuf modules or real mode are absent.

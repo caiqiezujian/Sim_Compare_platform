@@ -148,6 +148,10 @@ function App() {
           setRunning(false)
           setServerRunId(null)
           notify('任务已停止')
+        } else if (run.status === 'partial_completed') {
+          setRunning(false)
+          setServerRunId(null)
+          notify(`部分服务失败：${run.error || '请查看错误卡片'}`)
         } else if (run.status === 'failed') {
           setRunning(false)
           setServerRunId(null)

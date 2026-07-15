@@ -85,7 +85,10 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout=None, on_
     deadline = timeout or max(60, int(duration * 2.5 + 30))
     chunks = {}
     started = time.monotonic()
-    with grpc.insecure_channel(endpoint) as channel:
+    channel_options = (
+        ("grpc.enable_http_proxy", 0),
+    )
+    with grpc.insecure_channel(endpoint, options=channel_options) as channel:
         stub = asr_pb2_grpc.AsrServiceStub(channel)
         for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest, should_stop), timeout=deadline):
             if should_stop and should_stop():

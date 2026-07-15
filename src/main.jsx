@@ -12,9 +12,8 @@ import './styles.css'
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 const TIMELINE_TOP_PADDING = 64
 const TIMELINE_BOTTOM_PADDING = 180
-const TIMELINE_PX_PER_SECOND = 64
-const TIMELINE_CARD_HEIGHT = 132
-const TIMELINE_CARD_GAP = 14
+const TIMELINE_PX_PER_SECOND = 84
+const TIMELINE_CARD_ANCHOR_Y = 58
 
 const initialSystems = [
   { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.71:16552', language: 'zh → en', color: 'cyan', enabled: true },
@@ -80,28 +79,11 @@ function buildTimelineLayout(rows) {
   const maxStamp = Math.max(...rows.map(row => Number(row.stamp) || 0), 0)
   const positionedRows = rows.map(row => ({
     ...row,
-    left: row.left.map(event => ({ ...event, cardOffset: 0 })),
-    right: row.right.map(event => ({ ...event, cardOffset: 0 })),
     top: TIMELINE_TOP_PADDING + Math.max(0, Number(row.stamp) || 0) / 1000 * TIMELINE_PX_PER_SECOND,
   }))
-  let maxVisualBottom = TIMELINE_TOP_PADDING + maxStamp / 1000 * TIMELINE_PX_PER_SECOND
-  const applyCollisionAvoidance = (side) => {
-    let nextCenter = -Infinity
-    positionedRows.forEach(row => {
-      row[side].forEach(event => {
-        const desiredCenter = row.top
-        const displayCenter = Math.max(desiredCenter, nextCenter)
-        event.cardOffset = displayCenter - desiredCenter
-        nextCenter = displayCenter + TIMELINE_CARD_HEIGHT + TIMELINE_CARD_GAP
-        maxVisualBottom = Math.max(maxVisualBottom, displayCenter + TIMELINE_CARD_HEIGHT / 2)
-      })
-    })
-  }
-  applyCollisionAvoidance('left')
-  applyCollisionAvoidance('right')
   return {
     rows: positionedRows,
-    height: Math.max(360, maxVisualBottom + TIMELINE_BOTTOM_PADDING),
+    height: Math.max(360, TIMELINE_TOP_PADDING + maxStamp / 1000 * TIMELINE_PX_PER_SECOND + TIMELINE_BOTTOM_PADDING),
   }
 }
 
@@ -317,7 +299,7 @@ function TimelineResultCard({ event, selectedChunk, selectedSide, onSelect }) {
   const asrReady = Boolean(item.asr)
   const mtReady = Boolean(item.mt)
   return (
-    <div className={`result-cell ${side}-result bundle-result ${isSelected ? 'focus' : ''}`} style={{ transform: `translateY(calc(${event.cardOffset || 0}px - 50%))` }} onClick={() => onSelect(item.id, side)}>
+    <div className={`result-cell ${side}-result bundle-result ${isSelected ? 'focus' : ''}`} style={{ transform: `translateY(-${TIMELINE_CARD_ANCHOR_Y}px)` }} onClick={() => onSelect(item.id, side)}>
       <div className="result-head">
         <div className="result-tags">
           <span className="result-tag asr">ASR</span>

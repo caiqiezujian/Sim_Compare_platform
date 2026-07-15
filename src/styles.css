@@ -652,32 +652,6 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   text-align: left;
   min-height: 64px;
 }
-.result-cell.bundle-result::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 58px;
-  height: 1px;
-  background: var(--border);
-  pointer-events: none;
-}
-.result-cell.left-result.bundle-result::after,
-.result-cell.right-result.bundle-result::after {
-  content: "";
-  position: absolute;
-  top: 58px;
-  width: 16px;
-  height: 1px;
-  background: var(--border-strong);
-  pointer-events: none;
-}
-.result-cell.left-result.bundle-result::after {
-  right: -16px;
-}
-.result-cell.right-result.bundle-result::after {
-  left: -16px;
-}
 .result-cell:hover { border-color: var(--border-strong); background: var(--panel); }
 .result-cell.focus {
   border-color: var(--cyan);

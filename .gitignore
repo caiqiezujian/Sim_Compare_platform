@@ -2,7 +2,7 @@
 # 任何跑 `npm install` 后,请勿把改动 commit 进去(用 `git checkout -- node_modules/` 还原)
 node_modules/
 # ---------- Node / Vite ----------
-dist/
+# (dist/ 不忽略 — 部署走 git pull,build 产物直接入仓)
 .vite/
 *.log
 npm-debug.log*

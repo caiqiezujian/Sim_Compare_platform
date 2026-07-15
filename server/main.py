@@ -16,9 +16,12 @@ from typing import Dict
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 APP_DIR = Path(__file__).resolve().parent
+ROOT_DIR = APP_DIR.parent
+DIST_DIR = ROOT_DIR / "dist"
 RUNS: Dict[str, dict] = {}
 logger = logging.getLogger("simcompare")
 
@@ -164,3 +167,28 @@ async def get_chunks(run_id: str):
     if not run:
         return JSONResponse(status_code=404, content={"detail": "run not found"})
     return {"left": run.get("left", []), "right": run.get("right", [])}
+
+
+if (DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
+
+
+@app.get("/", include_in_schema=False)
+async def serve_frontend_index():
+    index_file = DIST_DIR / "index.html"
+    if not index_file.exists():
+        return JSONResponse(status_code=404, content={"detail": "dist/index.html not found"})
+    return FileResponse(index_file)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend_spa(full_path: str):
+    if full_path.startswith("api/"):
+        return JSONResponse(status_code=404, content={"detail": "api route not found"})
+    requested_file = DIST_DIR / full_path
+    if requested_file.is_file():
+        return FileResponse(requested_file)
+    index_file = DIST_DIR / "index.html"
+    if not index_file.exists():
+        return JSONResponse(status_code=404, content={"detail": "dist/index.html not found"})
+    return FileResponse(index_file)

@@ -534,7 +534,23 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .timeline-header .spacer { flex: 1; }
 .timeline-header .axis-label { color: var(--text-3); font: 600 10px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
 
-.timeline-list { background: var(--panel); }
+.timeline-list {
+  background: var(--panel);
+  position: relative;
+}
+.absolute-timeline {
+  overflow: hidden;
+}
+.absolute-axis {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, var(--border-strong) 24px, var(--border-strong) calc(100% - 24px), transparent);
+  z-index: 0;
+}
 
 .timeline-row {
   position: relative;
@@ -546,14 +562,48 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   align-items: stretch;
   transition: background .12s ease;
 }
+.absolute-timeline .timeline-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 0;
+  background: transparent;
+  z-index: 1;
+}
 .timeline-row:hover { background: var(--panel-2); }
 .timeline-row.selected { background: var(--cyan-soft); }
+.absolute-timeline .timeline-row:hover { background: rgba(245, 247, 250, 0.72); }
+.absolute-timeline .timeline-row.selected { background: rgba(226, 243, 249, 0.72); }
 
-.timeline-side-slot { min-width: 0; display: flex; align-items: stretch; }
+.timeline-side-slot {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
 .timeline-side-slot:first-of-type { grid-column: 1; }
 .timeline-side-slot:last-of-type  { grid-column: 3; }
 .timeline-side-slot:empty { visibility: hidden; }
 .timeline-row .center-spine { grid-column: 2; }
+.absolute-timeline .timeline-side-slot {
+  position: relative;
+  display: block;
+  min-height: 0;
+}
+.absolute-timeline .timeline-side-slot:empty { visibility: visible; }
+.absolute-timeline .center-spine {
+  transform: translateY(-50%);
+}
+.absolute-timeline .result-cell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.absolute-timeline .result-cell.focus {
+  z-index: 3;
+}
 
 .center-spine {
   position: relative;

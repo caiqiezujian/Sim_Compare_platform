@@ -103,6 +103,7 @@ function App() {
   const [video, setVideo] = useState(null)
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(68)
+  const [runStage, setRunStage] = useState('idle')
   const [activeTab, setActiveTab] = useState('compare')
   const [selectedChunk, setSelectedChunk] = useState('chunk-03')
   const [selectedSide, setSelectedSide] = useState('left')
@@ -115,6 +116,8 @@ function App() {
   const [mediaMuted, setMediaMuted] = useState(false)
   const [mediaPlaying, setMediaPlaying] = useState(false)
   const [mediaArmedRunId, setMediaArmedRunId] = useState(null)
+  const [uploadId, setUploadId] = useState('')
+  const [uploadState, setUploadState] = useState('idle')
   const [leftItems, setLeftItems] = useState(demoItems)
   const [rightItems, setRightItems] = useState(demoItems.map((item, i) => ({ ...item, asr: i === 3 ? '从这里开始，两个系统的输出有一点不同。' : item.asr, mt: i === 3 ? 'From this point, the outputs from the systems are slightly different.' : item.mt })))
   const fileInputRef = useRef(null)
@@ -140,14 +143,17 @@ function App() {
   }, [mediaMuted])
 
   useEffect(() => {
-    if (!serverRunId && mediaArmedRunId) setMediaArmedRunId(null)
-  }, [serverRunId, mediaArmedRunId])
+    if (!mediaRef.current || !mediaUrl) return
+    mediaRef.current.pause()
+    mediaRef.current.currentTime = 0
+    mediaRef.current.muted = mediaMuted
+    mediaRef.current.load()
+    setMediaPlaying(false)
+  }, [mediaUrl])
 
   useEffect(() => {
-    if (!running || serverRunId) return undefined
-    const timer = setInterval(() => setProgress(value => value >= 100 ? (setRunning(false), 100) : value + 4), 480)
-    return () => clearInterval(timer)
-  }, [running, serverRunId])
+    if (!serverRunId && mediaArmedRunId) setMediaArmedRunId(null)
+  }, [serverRunId, mediaArmedRunId])
 
   useEffect(() => {
     if (!serverRunId) return undefined
@@ -159,6 +165,7 @@ function App() {
         const run = await response.json()
         if (disposed) return
         setProgress(run.progress || 0)
+        setRunStage(run.stage || run.status || 'running')
         if (run.stream_started && mediaArmedRunId === serverRunId) {
           setMediaArmedRunId(null)
           playSourceMediaFromStart()
@@ -203,6 +210,8 @@ function App() {
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]
   const selected = selectedSide === 'left' ? selectedLeft : selectedRight
+  const progressLabel = running ? runStage : progress >= 100 ? 'completed' : 'idle'
+  const mediaStateLabel = mediaPlaying ? 'playing' : uploadState === 'uploading' ? 'loading' : uploadState === 'failed' ? 'load failed' : mediaUrl ? 'ready' : 'no media'
 
   const notify = (message) => {
     setToast(message)
@@ -237,6 +246,25 @@ function App() {
       mediaRef.current.currentTime = 0
       mediaRef.current.muted = mediaMuted
       setMediaPlaying(false)
+    }
+  }
+
+  const uploadSelectedFile = async (file) => {
+    setUploadId('')
+    setUploadState('uploading')
+    try {
+      const form = new FormData()
+      form.append('video', file)
+      const response = await fetch(`${API_BASE}/api/uploads`, { method: 'POST', body: form })
+      if (!response.ok) throw new Error('upload')
+      const data = await response.json()
+      setUploadId(data.upload_id)
+      setUploadState('ready')
+      setServerState('connected')
+    } catch {
+      setUploadState('failed')
+      setServerState('offline')
+      notify('音频加载到后端失败，点击开始时会尝试直接上传')
     }
   }
 
@@ -277,6 +305,9 @@ function App() {
     setRunning(false)
     setServerRunId(null)
     setProgress(0)
+    setRunStage('idle')
+    setUploadId('')
+    setUploadState('idle')
     setVideo(null)
     setLeftItems([])
     setRightItems([])
@@ -293,10 +324,12 @@ function App() {
     }
     setServerRunId(null)
     setRunning(true)
-    setProgress(8)
+    setRunStage('uploading')
+    setProgress(1)
     if (!video) {
       notify('当前使用演示视频，可直接查看交互')
       setRunning(false)
+      setRunStage('idle')
       return
     }
     try {
@@ -309,6 +342,14 @@ function App() {
         }
         setMediaPlaying(false)
         setRunning(false)
+        setRunStage('idle')
+        setProgress(0)
+        return
+      }
+      if (uploadState === 'uploading') {
+        notify('音频还在加载到后端，请稍后开始')
+        setRunning(false)
+        setRunStage('idle')
         setProgress(0)
         return
       }
@@ -317,7 +358,8 @@ function App() {
       setRightItems([])
       setSelectedSide('left')
       const form = new FormData()
-      form.append('video', video)
+      if (uploadId) form.append('upload_id', uploadId)
+      else form.append('video', video)
       form.append('systems', JSON.stringify(enabled))
       form.append('direction', direction)
       const response = await fetch(`${API_BASE}/api/runs`, { method: 'POST', body: form })
@@ -325,6 +367,11 @@ function App() {
       const data = await response.json()
       setServerState('connected')
       setServerRunId(data.run_id)
+      setRunStage('queued')
+      if (uploadId) {
+        setUploadId('')
+        setUploadState('consumed')
+      }
       setMediaArmedRunId(data.run_id)
       notify(`任务 ${data.run_id} 已启动`)
     } catch {
@@ -333,6 +380,7 @@ function App() {
         mediaRef.current.currentTime = 0
       }
       setMediaPlaying(false)
+      setRunStage('failed')
       setServerState('offline')
       notify('后端未连接，已切换为本地演示模式')
     }
@@ -340,7 +388,18 @@ function App() {
 
   const handleFile = event => {
     const file = event.target.files?.[0]
-    if (file) { setVideo(file); setProgress(0); notify(`已选择 ${file.name}`) }
+    if (file) {
+      setVideo(file)
+      setProgress(0)
+      setRunStage('idle')
+      setMediaArmedRunId(null)
+      setLeftItems([])
+      setRightItems([])
+      setSelectedChunk('')
+      setSelectedSide('left')
+      notify(`已选择 ${file.name}`)
+      uploadSelectedFile(file)
+    }
   }
 
   const toggleMediaMute = () => {
@@ -375,7 +434,7 @@ function App() {
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><h3>配置对比服务</h3><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{systems.slice(0, 2).map((system, index) => <div className="endpoint-row" key={system.id}><span className={`endpoint-tag ${system.color}`}>{index === 0 ? 'A' : 'B'}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div>)}</div><div className="service-actions"><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div></div>
         </section>
 
-        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaPlaying ? 'playing' : mediaUrl ? 'ready' : 'no media'}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
+        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaStateLabel}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{progressLabel}</span></div></section>
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 

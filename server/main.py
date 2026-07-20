@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +23,7 @@ APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 DIST_DIR = ROOT_DIR / "dist"
 RUNS: Dict[str, dict] = {}
+UPLOADS: Dict[str, dict] = {}
 logger = logging.getLogger("simcompare")
 
 app = FastAPI(title="SimCompare API", version="0.1.0")
@@ -68,20 +69,38 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
         if real_grpc and systems:
             from .grpc_runner import run_grpc
             lang = "en" if direction == "en2zh" else "zh"
-            run["progress"] = 20
+            active_sides = ["left", "right"] if len(systems) > 1 else ["left"]
+            run["stage"] = "starting"
+            run["progress"] = 1
 
             def update_side(side: str, rows: list):
                 if should_stop():
                     return
                 run[side] = rows
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
-                run["progress"] = min(95, max(run.get("progress", 20), 20 + run["completed_chunks"] * 3))
 
             def mark_stream_started():
                 if not run.get("stream_started"):
                     run["stream_started"] = True
                     run["stream_started_at"] = time.time()
-                    run["progress"] = max(run.get("progress", 20), 25)
+                    run["stage"] = "streaming"
+                    run["progress"] = max(run.get("progress", 1), 1)
+
+            def update_audio_progress(side: str, sent_ms: int, total_ms: int):
+                if should_stop():
+                    return
+                side_progress = run.setdefault("audio_progress", {})
+                side_progress[side] = {"sent_ms": sent_ms, "total_ms": total_ms}
+                available = [side_progress[name] for name in active_sides if name in side_progress]
+                if not available:
+                    return
+                total = max((item.get("total_ms") or 0) for item in available)
+                sent = min((item.get("sent_ms") or 0) for item in available)
+                run["audio_sent_ms"] = sent
+                run["audio_total_ms"] = total
+                run["stage"] = "waiting_results" if total > 0 and sent >= total else "streaming"
+                if total > 0:
+                    run["progress"] = min(95, max(1, round(sent / total * 95)))
 
             def run_side(side: str, endpoint: str):
                 try:
@@ -93,6 +112,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                         lambda rows: update_side(side, rows),
                         should_stop,
                         mark_stream_started,
+                        lambda sent_ms, total_ms: update_audio_progress(side, sent_ms, total_ms),
                     )
                 except Exception as exc:
                     message = str(exc)
@@ -117,6 +137,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 left, right = await left_task, []
             if should_stop():
                 run["status"] = "cancelled"
+                run["stage"] = "cancelled"
                 run["left"], run["right"] = left, right
                 return
             run["left"], run["right"] = left, right
@@ -126,19 +147,23 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 errors = [run.get("left_error"), run.get("right_error")]
                 run["error"] = " | ".join(error for error in errors if error)
                 run["status"] = "failed" if (run.get("left_error") and (not right_task or run.get("right_error"))) else "partial_completed"
+                run["stage"] = run["status"]
             else:
                 run["status"] = "completed"
+                run["stage"] = "completed"
             return
 
         # Safe local fallback while generated protobuf modules or real mode are absent.
         for index in range(1, 7):
             if should_stop():
                 run["status"] = "cancelled"
+                run["stage"] = "cancelled"
                 return
             await asyncio.sleep(0.32)
             run["progress"] = round(index / 6 * 100)
             run["completed_chunks"] = index
         run["status"] = "completed"
+        run["stage"] = "completed"
         run["systems"] = systems
         run["direction"] = direction
         run["left"] = demo_chunks()
@@ -149,8 +174,10 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
     except Exception as exc:
         if run.get("cancelled"):
             run["status"] = "cancelled"
+            run["stage"] = "cancelled"
         else:
             run["status"] = "failed"
+            run["stage"] = "failed"
             run["error"] = str(exc)
             logger.exception("run %s failed", run_id)
     finally:
@@ -163,19 +190,36 @@ async def health():
     return {"ok": True, "service": "simcompare-api", "grpc_adapter": (APP_DIR / "grpc_info" / "asr_pb2_grpc.py").exists()}
 
 
-@app.post("/api/runs")
-async def create_run(background_tasks: BackgroundTasks, video: UploadFile = File(...), systems: str = Form("[]"), direction: str = Form("zh2en")):
-    run_id = f"run_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(video.filename or ".mp4").suffix)
+@app.post("/api/uploads")
+async def create_upload(video: UploadFile = File(...)):
+    upload_id = f"upload_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(video.filename or ".wav").suffix)
     with temp as output:
         shutil.copyfileobj(video.file, output)
+    UPLOADS[upload_id] = {"upload_id": upload_id, "path": temp.name, "filename": video.filename or Path(temp.name).name, "created_at": time.time()}
+    return {"upload_id": upload_id, "filename": UPLOADS[upload_id]["filename"]}
+
+
+@app.post("/api/runs")
+async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFile] = File(None), upload_id: str = Form(""), systems: str = Form("[]"), direction: str = Form("zh2en")):
+    run_id = f"run_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
+    upload = UPLOADS.pop(upload_id, None) if upload_id else None
+    if upload:
+        video_path = upload["path"]
+    elif video:
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(video.filename or ".mp4").suffix)
+        with temp as output:
+            shutil.copyfileobj(video.file, output)
+        video_path = temp.name
+    else:
+        return JSONResponse(status_code=400, content={"detail": "video or upload_id is required"})
     try:
         parsed_systems = json.loads(systems)
     except json.JSONDecodeError:
         parsed_systems = []
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
-    RUNS[run_id] = {"run_id": run_id, "status": "queued", "progress": 0, "completed_chunks": 0, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False}
-    background_tasks.add_task(process_run, run_id, temp.name, parsed_systems, direction)
+    RUNS[run_id] = {"run_id": run_id, "status": "queued", "stage": "queued", "progress": 0, "completed_chunks": 0, "audio_sent_ms": 0, "audio_total_ms": 0, "audio_progress": {}, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False}
+    background_tasks.add_task(process_run, run_id, video_path, parsed_systems, direction)
     return {"run_id": run_id, "status": "queued"}
 
 

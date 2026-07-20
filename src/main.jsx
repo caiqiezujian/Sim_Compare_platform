@@ -5,7 +5,7 @@ import {
   FileVideo, FolderOpen, GitCompareArrows, Headphones, History, Info, Languages,
   Link2, ListFilter, LoaderCircle, Logs, Menu, Minus, Pause, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, TerminalSquare,
-  UploadCloud, Volume2, X, Zap
+  UploadCloud, Volume2, VolumeX, X, Zap
 } from 'lucide-react'
 import './styles.css'
 
@@ -111,12 +111,32 @@ function App() {
   const [toast, setToast] = useState('')
   const [serverState, setServerState] = useState('demo')
   const [serverRunId, setServerRunId] = useState(null)
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaMuted, setMediaMuted] = useState(false)
+  const [mediaPlaying, setMediaPlaying] = useState(false)
   const [leftItems, setLeftItems] = useState(demoItems)
   const [rightItems, setRightItems] = useState(demoItems.map((item, i) => ({ ...item, asr: i === 3 ? '从这里开始，两个系统的输出有一点不同。' : item.asr, mt: i === 3 ? 'From this point, the outputs from the systems are slightly different.' : item.mt })))
   const fileInputRef = useRef(null)
+  const mediaRef = useRef(null)
 
   const timelineRows = useMemo(() => buildTimelineRows(leftItems, rightItems, query), [leftItems, rightItems, query])
   const timelineLayout = useMemo(() => buildTimelineLayout(timelineRows), [timelineRows])
+
+  useEffect(() => {
+    if (!video) {
+      setMediaUrl('')
+      setMediaPlaying(false)
+      return undefined
+    }
+    const url = URL.createObjectURL(video)
+    setMediaUrl(url)
+    setMediaPlaying(false)
+    return () => URL.revokeObjectURL(url)
+  }, [video])
+
+  useEffect(() => {
+    if (mediaRef.current) mediaRef.current.muted = mediaMuted
+  }, [mediaMuted])
 
   useEffect(() => {
     if (!running || serverRunId) return undefined
@@ -208,6 +228,11 @@ function App() {
 
   const resetRun = () => {
     const activeRunId = serverRunId
+    if (mediaRef.current) {
+      mediaRef.current.pause()
+      mediaRef.current.currentTime = 0
+    }
+    setMediaPlaying(false)
     setRunning(false)
     setServerRunId(null)
     setProgress(0)
@@ -233,10 +258,26 @@ function App() {
       setRunning(false)
       return
     }
+    if (mediaRef.current) {
+      try {
+        mediaRef.current.currentTime = 0
+        mediaRef.current.muted = mediaMuted
+        await mediaRef.current.play()
+        setMediaPlaying(true)
+      } catch {
+        setMediaPlaying(false)
+        notify('原音频自动播放失败，请检查浏览器播放权限')
+      }
+    }
     try {
       const enabled = systems.slice(0, 2).filter(system => system.enabled && system.url.trim())
       if (!enabled.length) {
         notify('请至少填写一个 gRPC 服务地址')
+        if (mediaRef.current) {
+          mediaRef.current.pause()
+          mediaRef.current.currentTime = 0
+        }
+        setMediaPlaying(false)
         setRunning(false)
         setProgress(0)
         return
@@ -255,6 +296,11 @@ function App() {
       setServerRunId(data.run_id)
       notify(`任务 ${data.run_id} 已启动`)
     } catch {
+      if (mediaRef.current) {
+        mediaRef.current.pause()
+        mediaRef.current.currentTime = 0
+      }
+      setMediaPlaying(false)
       setServerState('offline')
       notify('后端未连接，已切换为本地演示模式')
     }
@@ -263,6 +309,10 @@ function App() {
   const handleFile = event => {
     const file = event.target.files?.[0]
     if (file) { setVideo(file); setProgress(0); notify(`已选择 ${file.name}`) }
+  }
+
+  const toggleMediaMute = () => {
+    setMediaMuted(value => !value)
   }
 
   const copyValue = value => { navigator.clipboard?.writeText(value); notify('已复制服务地址') }
@@ -293,13 +343,14 @@ function App() {
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><h3>配置对比服务</h3><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{systems.slice(0, 2).map((system, index) => <div className="endpoint-row" key={system.id}><span className={`endpoint-tag ${system.color}`}>{index === 0 ? 'A' : 'B'}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div>)}</div><div className="service-actions"><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div></div>
         </section>
 
-        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 00:14.600 · 16 kHz mono</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
+        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaPlaying ? 'playing' : mediaUrl ? 'ready' : 'no media'}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{running ? 'processing' : '6 / 6 chunks'}</span></div></section>
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{selectedChunk.replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> 原始 JSON</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> STREAM LOG</span></div><div className="log-window">{(selected?.logs || []).map((log, index) => <div className="log-line" key={log}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index === 2 ? 'accent' : ''}`}>{index === 2 ? 'RESULT' : 'INFO'}</span><span>{log}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CHUNK AUDIO</span><span className="audio-format">WAV · 16 kHz</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selected?.audio || 'chunk-03.wav'}</strong><small>{((selected?.end - selected?.start || 1260) / 1000).toFixed(2)}s · mono · 40.3 KB</small></div><button className="play-circle" onClick={() => notify('音频预览已加入播放队列')}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="audio-controls"><button className="audio-play" onClick={() => notify('音频预览已加入播放队列')}><Play size={13} fill="currentColor" /> 试听 chunk</button><span>{formatTime(selected?.start || 0)}</span><span>{formatTime(selected?.end || 0)}</span><Volume2 size={14} /></div></div></div></section>
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
+      {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
       {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加 gRPC 服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：我的本地测试版" autoFocus /></label><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><div className="modal-hint"><Info size={14} /> 支持 host:port 格式。后端会将此地址传入流式调用。</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加地址</button></div></form></div></div>}
     </div>
   )

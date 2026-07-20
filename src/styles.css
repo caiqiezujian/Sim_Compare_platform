@@ -455,6 +455,47 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 }
 .file-name svg { color: var(--cyan); }
 .run-meta { color: var(--text-3); font: 11px 'DM Mono', monospace; }
+.media-mute {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--text-2);
+  font: 600 10.5px 'DM Mono', monospace;
+  cursor: pointer;
+}
+.media-mute:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--panel-3);
+  color: var(--text);
+}
+.media-mute:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.media-mute.muted {
+  color: var(--amber);
+  border-color: rgba(188, 122, 0, .28);
+  background: rgba(255, 183, 77, .14);
+}
+.media-state {
+  color: var(--text-3);
+  font: 600 10px 'DM Mono', monospace;
+  text-transform: uppercase;
+}
+.source-media-player {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .progress-wrap { color: var(--cyan); font: 600 11px 'DM Mono', monospace; }
 .progress-track {

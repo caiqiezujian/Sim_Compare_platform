@@ -114,6 +114,7 @@ function App() {
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaMuted, setMediaMuted] = useState(false)
   const [mediaPlaying, setMediaPlaying] = useState(false)
+  const [mediaArmedRunId, setMediaArmedRunId] = useState(null)
   const [leftItems, setLeftItems] = useState(demoItems)
   const [rightItems, setRightItems] = useState(demoItems.map((item, i) => ({ ...item, asr: i === 3 ? '从这里开始，两个系统的输出有一点不同。' : item.asr, mt: i === 3 ? 'From this point, the outputs from the systems are slightly different.' : item.mt })))
   const fileInputRef = useRef(null)
@@ -139,6 +140,10 @@ function App() {
   }, [mediaMuted])
 
   useEffect(() => {
+    if (!serverRunId && mediaArmedRunId) setMediaArmedRunId(null)
+  }, [serverRunId, mediaArmedRunId])
+
+  useEffect(() => {
     if (!running || serverRunId) return undefined
     const timer = setInterval(() => setProgress(value => value >= 100 ? (setRunning(false), 100) : value + 4), 480)
     return () => clearInterval(timer)
@@ -154,6 +159,10 @@ function App() {
         const run = await response.json()
         if (disposed) return
         setProgress(run.progress || 0)
+        if (run.stream_started && mediaArmedRunId === serverRunId) {
+          setMediaArmedRunId(null)
+          playSourceMediaFromStart()
+        }
         const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
         if (chunksResponse.ok) {
           const chunks = await chunksResponse.json()
@@ -189,7 +198,7 @@ function App() {
     poll()
     const timer = window.setInterval(poll, 520)
     return () => { disposed = true; window.clearInterval(timer) }
-  }, [serverRunId])
+  }, [serverRunId, mediaArmedRunId, mediaMuted])
 
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]
@@ -198,6 +207,37 @@ function App() {
   const notify = (message) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 2400)
+  }
+
+  const playSourceMediaFromStart = async () => {
+    if (!mediaRef.current) return
+    try {
+      mediaRef.current.currentTime = 0
+      mediaRef.current.muted = mediaMuted
+      await mediaRef.current.play()
+      setMediaPlaying(true)
+    } catch {
+      setMediaPlaying(false)
+      notify('原音频自动播放失败，请检查浏览器播放权限')
+    }
+  }
+
+  const unlockSourceMediaPlayback = async () => {
+    if (!mediaRef.current) return
+    try {
+      mediaRef.current.currentTime = 0
+      mediaRef.current.muted = true
+      await mediaRef.current.play()
+      mediaRef.current.pause()
+      mediaRef.current.currentTime = 0
+      mediaRef.current.muted = mediaMuted
+      setMediaPlaying(false)
+    } catch {
+      mediaRef.current.pause()
+      mediaRef.current.currentTime = 0
+      mediaRef.current.muted = mediaMuted
+      setMediaPlaying(false)
+    }
   }
 
   const addSystem = (event) => {
@@ -233,6 +273,7 @@ function App() {
       mediaRef.current.currentTime = 0
     }
     setMediaPlaying(false)
+    setMediaArmedRunId(null)
     setRunning(false)
     setServerRunId(null)
     setProgress(0)
@@ -258,17 +299,6 @@ function App() {
       setRunning(false)
       return
     }
-    if (mediaRef.current) {
-      try {
-        mediaRef.current.currentTime = 0
-        mediaRef.current.muted = mediaMuted
-        await mediaRef.current.play()
-        setMediaPlaying(true)
-      } catch {
-        setMediaPlaying(false)
-        notify('原音频自动播放失败，请检查浏览器播放权限')
-      }
-    }
     try {
       const enabled = systems.slice(0, 2).filter(system => system.enabled && system.url.trim())
       if (!enabled.length) {
@@ -282,6 +312,7 @@ function App() {
         setProgress(0)
         return
       }
+      await unlockSourceMediaPlayback()
       setLeftItems([])
       setRightItems([])
       setSelectedSide('left')
@@ -294,6 +325,7 @@ function App() {
       const data = await response.json()
       setServerState('connected')
       setServerRunId(data.run_id)
+      setMediaArmedRunId(data.run_id)
       notify(`任务 ${data.run_id} 已启动`)
     } catch {
       if (mediaRef.current) {

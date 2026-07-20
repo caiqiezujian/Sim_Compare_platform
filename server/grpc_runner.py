@@ -45,7 +45,7 @@ def _audio_samples(path: str):
     return frames, frame_count / float(rate)
 
 
-def _send_audio(audio_file: str, lang: str, AsrRequest, should_stop=None):
+def _send_audio(audio_file: str, lang: str, AsrRequest, should_stop=None, on_stream_start=None):
     sid = int(time.time() * 1e6) + secrets.randbelow(1000)
     conference_id = str(secrets.randbits(32))
     yield AsrRequest(sessionParam={"sid": f"Beijing-TSC-test-{sid}", "lang": lang, "latency": "long", "userinfo": json.dumps({"conferenceType": "Caption", "conferenceId": conference_id, "source": 2, "talkId": str(secrets.randbits(32)), "userId": "simcompare", "save": 1})})
@@ -53,6 +53,8 @@ def _send_audio(audio_file: str, lang: str, AsrRequest, should_stop=None):
     for index in range(math.ceil(len(pcm) / SEND_BYTES)):
         if should_stop and should_stop():
             break
+        if index == 0 and on_stream_start:
+            on_stream_start()
         yield AsrRequest(samples=pcm[index * SEND_BYTES:(index + 1) * SEND_BYTES])
         time.sleep(0.4)
     yield AsrRequest(endFlag=True)
@@ -75,7 +77,7 @@ def _result_key(result: dict, fallback_index: int):
     return f"idx:{fallback_index}"
 
 
-def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout=None, on_update=None, should_stop=None):
+def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout=None, on_update=None, should_stop=None, on_stream_start=None):
     """Run one endpoint and normalize its responses to the UI chunk contract."""
     import grpc
     from .grpc_info import asr_pb2_grpc
@@ -90,7 +92,7 @@ def run_grpc(audio_file: str, endpoint: str, lang: str = "zh", timeout=None, on_
     )
     with grpc.insecure_channel(endpoint, options=channel_options) as channel:
         stub = asr_pb2_grpc.AsrServiceStub(channel)
-        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest, should_stop), timeout=deadline):
+        for response in stub.createRec(_send_audio(audio_file, lang, AsrRequest, should_stop, on_stream_start), timeout=deadline):
             if should_stop and should_stop():
                 break
             payload = getattr(response, "data", None)

@@ -77,6 +77,12 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
                 run["progress"] = min(95, max(run.get("progress", 20), 20 + run["completed_chunks"] * 3))
 
+            def mark_stream_started():
+                if not run.get("stream_started"):
+                    run["stream_started"] = True
+                    run["stream_started_at"] = time.time()
+                    run["progress"] = max(run.get("progress", 20), 25)
+
             def run_side(side: str, endpoint: str):
                 try:
                     return run_grpc(
@@ -86,6 +92,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                         None,
                         lambda rows: update_side(side, rows),
                         should_stop,
+                        mark_stream_started,
                     )
                 except Exception as exc:
                     message = str(exc)
@@ -167,7 +174,7 @@ async def create_run(background_tasks: BackgroundTasks, video: UploadFile = File
     except json.JSONDecodeError:
         parsed_systems = []
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
-    RUNS[run_id] = {"run_id": run_id, "status": "queued", "progress": 0, "completed_chunks": 0, "systems": parsed_systems, "direction": direction, "cancelled": False}
+    RUNS[run_id] = {"run_id": run_id, "status": "queued", "progress": 0, "completed_chunks": 0, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False}
     background_tasks.add_task(process_run, run_id, temp.name, parsed_systems, direction)
     return {"run_id": run_id, "status": "queued"}
 

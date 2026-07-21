@@ -1,4 +1,4 @@
-# SimCompare 同传对比调试台
+﻿# SimCompare 同传对比调试台
 
 SimCompare 是一个用于调试同传 S2TT / gRPC 服务的本地 Web 平台。它支持上传音频或视频，调用一个或两个 gRPC 服务，并在时间轴上查看每个返回包里的 ASR、翻译、日志和 chunk 音频信息。
 
@@ -42,18 +42,49 @@ pip install -r server\requirements.txt
 
 需要开两个 PowerShell 窗口。
 
-窗口 1：启动后端。如果要真实调用 gRPC：
+先编辑项目根目录的 `simcompare.config.json`。这里放默认 gRPC 地址、debug 日志文件和 concat 音频根目录：
+
+```json
+{
+  "services": {
+    "left": {
+      "label": "系统 A",
+      "grpc_url": "10.185.1.71:16552",
+      "debug_log": "/data/path/to/left/grpc.log",
+      "debug_root": "/data/path/to/left/shells/debug"
+    },
+    "right": {
+      "label": "系统 B",
+      "grpc_url": "",
+      "debug_log": "/data/path/to/right/grpc.log",
+      "debug_root": "/data/path/to/right/shells/debug"
+    }
+  },
+  "storage": {
+    "upload_dir": "/data/simcompare/uploads"
+  }
+}
+```
+
+窗口 1：启动后端。页面会自动读取配置里的默认 gRPC 地址；你也可以在页面上临时手动改地址。
 
 ```powershell
 cd D:\Sim_Compare_platform
-$env:SIMCOMPARE_REAL_GRPC="1"
 python -m uvicorn server.main:app --host 127.0.0.1 --port 8000
 ```
 
-如果只是看界面和 demo 数据，不真实请求 gRPC：
+Linux 服务器上通常这样启动：
+
+```bash
+cd /data/yb/Sim_Compare_platform
+python3 -m uvicorn server.main:app --host 0.0.0.0 --port 8000
+```
+
+如果你不想使用项目根目录的配置文件，可以用 `SIMCOMPARE_CONFIG` 指向另一个配置文件：
 
 ```powershell
 cd D:\Sim_Compare_platform
+$env:SIMCOMPARE_CONFIG="D:\path\to\simcompare.config.json"
 python -m uvicorn server.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -230,10 +261,13 @@ RUNS[run_id]["right"]
 
 ```text
 GET  /api/health
+GET  /api/config
 POST /api/runs
 GET  /api/runs/{run_id}
 POST /api/runs/{run_id}/cancel
 GET  /api/runs/{run_id}/chunks
+GET  /api/runs/{run_id}/debug/{side}/{chunk_id}
+GET  /api/runs/{run_id}/debug/{side}/{chunk_id}/audio
 ```
 
 `POST /api/runs` 表单字段：
@@ -242,6 +276,7 @@ GET  /api/runs/{run_id}/chunks
 video      上传的音频或视频文件
 systems    前端传入的 gRPC 地址列表
 direction  zh2en 或 en2zh
+conference_id  会议 ID，会作为 gRPC sid 和 userinfo.conferenceId 传入
 ```
 
 ## 停止服务
@@ -266,10 +301,10 @@ Y
 
 ## 常见问题
 
-如果页面能打开但没有真实请求 gRPC，检查后端是否用真实模式启动：
+如果页面能打开但没有真实请求 gRPC，先检查前端是否填写了 gRPC 服务地址：
 
 ```powershell
-$env:SIMCOMPARE_REAL_GRPC="1"
+curl http://127.0.0.1:8000/api/config
 ```
 
 如果上传 WAV 后报格式错误，优先确认是否为：

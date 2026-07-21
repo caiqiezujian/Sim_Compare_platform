@@ -88,11 +88,11 @@ def load_pcm(audio_path):
     return frames, duration, temp_path
 
 
-def build_requests(audio_path, lang, chunk_bytes, sleep_seconds):
-    sid = int(time.time() * 1e6) + secrets.randbelow(1000)
-    conference_id = str(secrets.randbits(32))
+def build_requests(audio_path, lang, chunk_bytes, sleep_seconds, conference_id=None):
+    if conference_id is None:
+        conference_id = f"probe-{int(time.time())}-{secrets.token_hex(2)}"
     session_param = {
-        "sid": f"Beijing-TSC-test-{sid}",
+        "sid": conference_id,
         "lang": lang,
         "latency": "long",
         "userinfo": json.dumps(
@@ -169,7 +169,7 @@ def run_probe(args):
             started = time.monotonic()
             count = 0
             for response in stub.createRec(
-                build_requests(audio_path, args.lang, args.chunk_bytes, args.sleep),
+                build_requests(audio_path, args.lang, args.chunk_bytes, args.sleep, args.conference_id),
                 timeout=args.timeout,
             ):
                 count += 1
@@ -189,6 +189,8 @@ def run_probe(args):
                         f"bg={result.get('bg')} ed={result.get('ed')} "
                         f"mt_type={result.get('mt_type')} hold_n={result.get('hold_n')}"
                     )
+                    if result.get("conference_id") is not None:
+                        log(f"[conference_id] {result.get('conference_id')}")
                     if asr:
                         log(f"[asr] {asr}")
                     if mt:
@@ -220,6 +222,7 @@ def main():
     parser.add_argument("--endpoint", default="10.185.1.71:16552", help="gRPC host:port")
     parser.add_argument("--audio", help="Audio/video file. WAV is preferred.")
     parser.add_argument("--lang", default="zh", choices=["zh", "en"], help="Service language parameter")
+    parser.add_argument("--conference-id", help="Conference ID used as sid and userinfo.conferenceId")
     parser.add_argument("--timeout", type=int, default=60, help="RPC deadline in seconds")
     parser.add_argument("--ready-timeout", type=int, default=8, help="Channel ready timeout in seconds")
     parser.add_argument("--max-responses", type=int, default=20, help="Stop after N responses; 0 means no limit")

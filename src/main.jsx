@@ -100,6 +100,7 @@ function App() {
   const [systems, setSystems] = useState(initialSystems)
   const [selectedSystem, setSelectedSystem] = useState('system-a')
   const [direction, setDirection] = useState('zh2en')
+  const [conferenceId, setConferenceId] = useState(`my_test_${Date.now()}`)
   const [video, setVideo] = useState(null)
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(68)
@@ -112,12 +113,15 @@ function App() {
   const [toast, setToast] = useState('')
   const [serverState, setServerState] = useState('demo')
   const [serverRunId, setServerRunId] = useState(null)
+  const [lastRunId, setLastRunId] = useState(null)
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaMuted, setMediaMuted] = useState(false)
   const [mediaPlaying, setMediaPlaying] = useState(false)
   const [mediaArmedRunId, setMediaArmedRunId] = useState(null)
   const [uploadId, setUploadId] = useState('')
   const [uploadState, setUploadState] = useState('idle')
+  const [debugInfo, setDebugInfo] = useState(null)
+  const [debugLoading, setDebugLoading] = useState(false)
   const [leftItems, setLeftItems] = useState(demoItems)
   const [rightItems, setRightItems] = useState(demoItems.map((item, i) => ({ ...item, asr: i === 3 ? '从这里开始，两个系统的输出有一点不同。' : item.asr, mt: i === 3 ? 'From this point, the outputs from the systems are slightly different.' : item.mt })))
   const fileInputRef = useRef(null)
@@ -125,6 +129,26 @@ function App() {
 
   const timelineRows = useMemo(() => buildTimelineRows(leftItems, rightItems, query), [leftItems, rightItems, query])
   const timelineLayout = useMemo(() => buildTimelineLayout(timelineRows), [timelineRows])
+
+  useEffect(() => {
+    let disposed = false
+    fetch(`${API_BASE}/api/config`)
+      .then(response => response.ok ? response.json() : null)
+      .then(config => {
+        if (disposed || !config?.services) return
+        const configured = [config.services.left, config.services.right]
+        setSystems(items => items.map((item, index) => {
+          const service = configured[index] || {}
+          return {
+            ...item,
+            label: service.label || item.label,
+            url: service.grpc_url || item.url,
+          }
+        }))
+      })
+      .catch(() => {})
+    return () => { disposed = true }
+  }, [])
 
   useEffect(() => {
     if (!video) {
@@ -154,6 +178,29 @@ function App() {
   useEffect(() => {
     if (!serverRunId && mediaArmedRunId) setMediaArmedRunId(null)
   }, [serverRunId, mediaArmedRunId])
+
+  useEffect(() => {
+    const debugRunId = serverRunId || lastRunId
+    if (!debugRunId || !selectedChunk) {
+      setDebugInfo(null)
+      return undefined
+    }
+    const sideItems = selectedSide === 'left' ? leftItems : rightItems
+    const item = sideItems.find(row => row.id === selectedChunk)
+    const chunkId = item?.chunk_id ?? item?.sn ?? item?.id
+    if (chunkId === undefined || chunkId === null || String(chunkId).startsWith('chunk-')) {
+      setDebugInfo(null)
+      return undefined
+    }
+    let disposed = false
+    setDebugLoading(true)
+    fetch(`${API_BASE}/api/runs/${debugRunId}/debug/${selectedSide}/${chunkId}`)
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (!disposed) setDebugInfo(data) })
+      .catch(() => { if (!disposed) setDebugInfo(null) })
+      .finally(() => { if (!disposed) setDebugLoading(false) })
+    return () => { disposed = true }
+  }, [serverRunId, lastRunId, selectedChunk, selectedSide, leftItems, rightItems])
 
   useEffect(() => {
     if (!serverRunId) return undefined
@@ -210,6 +257,23 @@ function App() {
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]
   const selected = selectedSide === 'left' ? selectedLeft : selectedRight
+  const selectedDebug = debugInfo || {}
+  const selectedDebugMetrics = selectedDebug.debug || {}
+  const selectedDebugAsr = selectedDebug.asr || {}
+  const selectedDebugMt = selectedDebug.mt || {}
+  const selectedChunkId = selected?.chunk_id ?? selected?.sn ?? selected?.id ?? ''
+  const debugAudioUrl = selectedDebug.audio_url ? `${API_BASE}${selectedDebug.audio_url}` : ''
+  const inspectorLogs = [
+    selectedDebugAsr.src_text ? `ASR: ${selectedDebugAsr.src_text}` : selected?.asr ? `ASR: ${selected.asr}` : '',
+    selectedDebugMt.tgt_text ? `MT: ${selectedDebugMt.tgt_text}` : selected?.mt ? `MT: ${selected.mt}` : '',
+    ...(Array.isArray(selectedDebug.logs) ? selectedDebug.logs : selected?.logs || []),
+    selectedDebug.debug_found === false ? 'debug log not found' : '',
+    selectedDebug.audio_found === false ? 'debug audio not found' : '',
+    selectedDebugMetrics.rtf !== undefined ? `RTF=${selectedDebugMetrics.rtf}` : '',
+    selectedDebugMetrics.ctc_avg_prob !== undefined ? `CTC=${selectedDebugMetrics.ctc_avg_prob}` : '',
+    selectedDebugMetrics.dur_vad !== undefined ? `VAD=${selectedDebugMetrics.dur_vad}s` : '',
+    selectedDebugMetrics.concat_wav_duration !== undefined ? `concat=${selectedDebugMetrics.concat_wav_duration}s` : '',
+  ].filter(Boolean)
   const progressLabel = running ? runStage : progress >= 100 ? 'completed' : 'idle'
   const mediaStateLabel = mediaPlaying ? 'playing' : uploadState === 'uploading' ? 'loading' : uploadState === 'failed' ? 'load failed' : mediaUrl ? 'ready' : 'no media'
 
@@ -304,6 +368,7 @@ function App() {
     setMediaArmedRunId(null)
     setRunning(false)
     setServerRunId(null)
+    setLastRunId(null)
     setProgress(0)
     setRunStage('idle')
     setUploadId('')
@@ -311,6 +376,8 @@ function App() {
     setVideo(null)
     setLeftItems([])
     setRightItems([])
+    setDebugInfo(null)
+    setDebugLoading(false)
     setSelectedChunk('')
     setSelectedSide('left')
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -362,11 +429,13 @@ function App() {
       else form.append('video', video)
       form.append('systems', JSON.stringify(enabled))
       form.append('direction', direction)
+      form.append('conference_id', conferenceId.trim())
       const response = await fetch(`${API_BASE}/api/runs`, { method: 'POST', body: form })
       if (!response.ok) throw new Error('server')
       const data = await response.json()
       setServerState('connected')
       setServerRunId(data.run_id)
+      setLastRunId(data.run_id)
       setRunStage('queued')
       if (uploadId) {
         setUploadId('')
@@ -395,10 +464,24 @@ function App() {
       setMediaArmedRunId(null)
       setLeftItems([])
       setRightItems([])
+      setDebugInfo(null)
+      setDebugLoading(false)
       setSelectedChunk('')
       setSelectedSide('left')
       notify(`已选择 ${file.name}`)
       uploadSelectedFile(file)
+    }
+  }
+
+  const playDebugAudio = async () => {
+    if (!debugAudioUrl) {
+      notify('debug 音频未找到')
+      return
+    }
+    try {
+      await new Audio(debugAudioUrl).play()
+    } catch {
+      notify('debug 音频播放失败')
     }
   }
 
@@ -434,11 +517,13 @@ function App() {
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><h3>配置对比服务</h3><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{systems.slice(0, 2).map((system, index) => <div className="endpoint-row" key={system.id}><span className={`endpoint-tag ${system.color}`}>{index === 0 ? 'A' : 'B'}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div>)}</div><div className="service-actions"><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div></div>
         </section>
 
+        <section className="conference-card"><label className="conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><span>将作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav</span></section>
+
         <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaStateLabel}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{progressLabel}</span></div></section>
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
-        <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{selectedChunk.replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> 原始 JSON</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> STREAM LOG</span></div><div className="log-window">{(selected?.logs || []).map((log, index) => <div className="log-line" key={log}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index === 2 ? 'accent' : ''}`}>{index === 2 ? 'RESULT' : 'INFO'}</span><span>{log}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CHUNK AUDIO</span><span className="audio-format">WAV · 16 kHz</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selected?.audio || 'chunk-03.wav'}</strong><small>{((selected?.end - selected?.start || 1260) / 1000).toFixed(2)}s · mono · 40.3 KB</small></div><button className="play-circle" onClick={() => notify('音频预览已加入播放队列')}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="audio-controls"><button className="audio-play" onClick={() => notify('音频预览已加入播放队列')}><Play size={13} fill="currentColor" /> 试听 chunk</button><span>{formatTime(selected?.start || 0)}</span><span>{formatTime(selected?.end || 0)}</span><Volume2 size={14} /></div></div></div></section>
+        <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={`${log}-${index}`}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : JSON.stringify(log)}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}

@@ -1,0 +1,24 @@
+{
+  "services": {
+    "left": {
+      "label": "System A",
+      "grpc_url": "10.185.1.71:16552",
+      "debug_log": "",
+      "debug_root": ""
+    },
+    "right": {
+      "label": "System B",
+      "grpc_url": "",
+      "debug_log": "",
+      "debug_root": ""
+    }
+  },
+  "storage": {
+    "upload_dir": ""
+  },
+  "runtime": {
+    "debug_log_max_bytes": 33554432,
+    "debug_context_before": 24,
+    "debug_context_after": 8
+  }
+}

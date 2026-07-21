@@ -155,6 +155,15 @@ def parse_asr_from_log(message: str):
     if "ASR:|" not in message:
         return {}
     fields = message.split("|")
+    if "SPEECH END ASR:|" in message and len(fields) >= 3:
+        return {
+            "src_text": fields[1],
+            "part_2_mt": "",
+            "tgt_text": fields[2],
+            "offset": "",
+            "lang": "",
+            "is_end": True,
+        }
     # Current service log shape:
     # ASR:|src_text|part_or_partial|tgt_text|part_2_mt|bg_or_offset|lang|is_end|
     result = {}
@@ -197,9 +206,28 @@ def parse_debug_log(log_path: Path, conference_id: str, chunk_id: str):
         if "####################qwen3_asr######################" in records[index]:
             block_start = index
             break
+    previous_debug_index = None
+    for index in range(target_index - 1, -1, -1):
+        if "DEBUG_INFO:" in records[index]:
+            previous_debug_index = index
+            break
+    if previous_debug_index is not None and previous_debug_index > block_start:
+        block_start = previous_debug_index + 1
+        for index in range(previous_debug_index + 1, target_index + 1):
+            message = log_message(records[index])
+            if "Got endFlag from client" in message or "ON SPEECH END" in message:
+                block_start = index
+                break
     block_end = len(records)
     for index in range(target_index + 1, len(records)):
         if "####################qwen3_asr######################" in records[index]:
+            block_end = index
+            break
+        if "DEBUG_INFO:" in records[index]:
+            block_end = index
+            break
+        message = log_message(records[index])
+        if "Got endFlag from client" in message or "ON SPEECH END" in message:
             block_end = index
             break
     if block_start == target_index and block_end == len(records):

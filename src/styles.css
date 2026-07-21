@@ -347,6 +347,46 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .dropzone small { margin-top: 2px; color: var(--text-2); font-size: 11.5px; }
 .drop-chevron { margin-left: auto; color: var(--text-3); transform: rotate(-90deg); }
 
+.upload-progress {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(17, 183, 235, .18);
+  border-radius: 6px;
+  background: rgba(17, 183, 235, .06);
+}
+.upload-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  font: 600 10.5px 'DM Mono', monospace;
+  text-transform: uppercase;
+}
+.upload-progress-track {
+  height: 6px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .12);
+}
+.upload-progress-value {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  transition: width .16s ease;
+}
+.upload-progress.failed {
+  border-color: rgba(239, 68, 68, .22);
+  background: rgba(239, 68, 68, .06);
+}
+.upload-progress.failed .upload-progress-value { background: #ef4444; }
+.upload-error {
+  margin-top: 7px;
+  color: #b91c1c;
+  font-size: 11px;
+}
+
 .service-selects { display: flex; gap: 8px; }
 .endpoint-row {
   display: flex; align-items: center;

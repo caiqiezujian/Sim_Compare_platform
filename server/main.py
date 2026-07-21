@@ -62,6 +62,10 @@ def error_chunk(side: str, endpoint: str, message: str):
     }]
 
 
+def system_endpoint(system: dict):
+    return (system.get("url") or system.get("grpc_url") or system.get("grpcUrl") or system.get("endpoint") or "").strip()
+
+
 def debug_root_for_side(run: dict, side: str):
     side = side.lower()
     index = 0 if side == "left" else 1 if side == "right" else None
@@ -106,6 +110,10 @@ def create_upload_temp_file(filename: str, default_suffix: str):
         directory.mkdir(parents=True, exist_ok=True)
         return tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=directory)
     return tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+
+
+def is_supported_audio(filename: str):
+    return Path(filename or "").suffix.lower() in {".wav", ".wave", ".mp3"}
 
 
 def split_log_records(text: str):
@@ -315,7 +323,15 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                         conference_id=conference_id,
                     )
                 except Exception as exc:
-                    message = str(exc)
+                    logger.exception(
+                        "%s grpc failed endpoint=%s lang=%s conference_id=%s audio=%s",
+                        side,
+                        endpoint,
+                        lang,
+                        conference_id,
+                        video_path,
+                    )
+                    message = f"{type(exc).__name__}: {exc}"
                     rows = error_chunk(side, endpoint, message)
                     update_side(side, rows)
                     run[f"{side}_error"] = message
@@ -324,12 +340,12 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             left_task = asyncio.to_thread(
                 run_side,
                 "left",
-                systems[0].get("url", ""),
+                system_endpoint(systems[0]),
             )
             right_task = asyncio.to_thread(
                 run_side,
                 "right",
-                systems[1].get("url", ""),
+                system_endpoint(systems[1]),
             ) if len(systems) > 1 else None
             if right_task:
                 left, right = await asyncio.gather(left_task, right_task)
@@ -420,6 +436,8 @@ async def get_config():
 
 @app.post("/api/uploads")
 async def create_upload(video: UploadFile = File(...)):
+    if not is_supported_audio(video.filename or ""):
+        return JSONResponse(status_code=400, content={"detail": "only wav, wave and mp3 files are supported"})
     upload_id = f"upload_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
     temp = create_upload_temp_file(video.filename or ".wav", ".wav")
     with temp as output:
@@ -435,7 +453,9 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
     if upload:
         video_path = upload["path"]
     elif video:
-        temp = create_upload_temp_file(video.filename or ".mp4", ".mp4")
+        if not is_supported_audio(video.filename or ""):
+            return JSONResponse(status_code=400, content={"detail": "only wav, wave and mp3 files are supported"})
+        temp = create_upload_temp_file(video.filename or ".wav", ".wav")
         with temp as output:
             shutil.copyfileobj(video.file, output)
         video_path = temp.name

@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   AudioLines, Check, ChevronDown, CircleHelp, Clock3, Copy, FileAudio,
-  FileVideo, FolderOpen, GitCompareArrows, Headphones, History, Info, Languages,
+  FolderOpen, GitCompareArrows, Headphones, History, Info, Languages,
   Link2, ListFilter, LoaderCircle, Logs, Menu, Minus, Pause, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, TerminalSquare,
   UploadCloud, Volume2, VolumeX, X, Zap
@@ -120,6 +120,8 @@ function App() {
   const [mediaArmedRunId, setMediaArmedRunId] = useState(null)
   const [uploadId, setUploadId] = useState('')
   const [uploadState, setUploadState] = useState('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
   const [debugInfo, setDebugInfo] = useState(null)
   const [debugLoading, setDebugLoading] = useState(false)
   const [leftItems, setLeftItems] = useState(demoItems)
@@ -276,6 +278,9 @@ function App() {
   ].filter(Boolean)
   const progressLabel = running ? runStage : progress >= 100 ? 'completed' : 'idle'
   const mediaStateLabel = mediaPlaying ? 'playing' : uploadState === 'uploading' ? 'loading' : uploadState === 'failed' ? 'load failed' : mediaUrl ? 'ready' : 'no media'
+  const uploadProgressVisible = uploadState === 'uploading' || uploadState === 'ready' || uploadState === 'failed'
+  const uploadProgressLabel = uploadState === 'uploading' ? `uploading ${uploadProgress}%` : uploadState === 'ready' ? 'upload ready' : uploadState === 'failed' ? 'upload failed' : ''
+  const uploadProgressWidth = uploadState === 'failed' ? 100 : uploadProgress
 
   const notify = (message) => {
     setToast(message)
@@ -331,6 +336,48 @@ function App() {
       notify('音频加载到后端失败，点击开始时会尝试直接上传')
     }
   }
+  const uploadSelectedFileWithProgress = async (file) => {
+    setUploadId('')
+    setUploadState('uploading')
+    setUploadProgress(0)
+    setUploadError('')
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const form = new FormData()
+        form.append('video', file)
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `${API_BASE}/api/uploads`)
+        xhr.upload.onprogress = event => {
+          if (!event.lengthComputable) return
+          const value = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)))
+          setUploadProgress(value)
+        }
+        xhr.onload = () => {
+          let payload = {}
+          try {
+            payload = JSON.parse(xhr.responseText || '{}')
+          } catch {
+            payload = {}
+          }
+          if (xhr.status >= 200 && xhr.status < 300) resolve(payload)
+          else reject(new Error(payload.detail || `upload failed: ${xhr.status}`))
+        }
+        xhr.onerror = () => reject(new Error('upload network error'))
+        xhr.onabort = () => reject(new Error('upload aborted'))
+        xhr.send(form)
+      })
+      setUploadId(data.upload_id)
+      setUploadProgress(100)
+      setUploadState('ready')
+      setServerState('connected')
+    } catch (error) {
+      setUploadState('failed')
+      setUploadProgress(0)
+      setUploadError(error?.message || 'upload failed')
+      setServerState('offline')
+      notify('音频上传失败，请检查格式或网络')
+    }
+  }
 
   const addSystem = (event) => {
     event.preventDefault()
@@ -373,6 +420,8 @@ function App() {
     setRunStage('idle')
     setUploadId('')
     setUploadState('idle')
+    setUploadProgress(0)
+    setUploadError('')
     setVideo(null)
     setLeftItems([])
     setRightItems([])
@@ -394,7 +443,7 @@ function App() {
     setRunStage('uploading')
     setProgress(1)
     if (!video) {
-      notify('当前使用演示视频，可直接查看交互')
+      notify('当前使用演示音频，可直接查看交互')
       setRunning(false)
       setRunStage('idle')
       return
@@ -460,6 +509,8 @@ function App() {
     if (file) {
       setVideo(file)
       setProgress(0)
+      setUploadProgress(0)
+      setUploadError('')
       setRunStage('idle')
       setMediaArmedRunId(null)
       setLeftItems([])
@@ -469,7 +520,7 @@ function App() {
       setSelectedChunk('')
       setSelectedSide('left')
       notify(`已选择 ${file.name}`)
-      uploadSelectedFile(file)
+      uploadSelectedFileWithProgress(file)
     }
   }
 
@@ -513,13 +564,13 @@ function App() {
         <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
 
         <section className="control-grid">
-          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择媒体文件</h3><p>上传视频，后端会按音频 chunk 发送至服务。</p></div></div><FileVideo size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept="video/*,audio/*" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 MP4 / MOV / WAV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button></div>
+          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音频文件</h3><p>上传 WAV 或 MP3，后端会按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,audio/wav,audio/mpeg" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{uploadProgressVisible && <div className={`upload-progress ${uploadState === 'failed' ? 'failed' : ''}`}><div className="upload-progress-top"><span>{uploadProgressLabel}</span><span>{uploadState === 'uploading' ? `${uploadProgress}%` : uploadState === 'ready' ? '100%' : 'error'}</span></div><div className="upload-progress-track"><div className="upload-progress-value" style={{ width: `${uploadProgressWidth}%` }} /></div>{uploadError && <div className="upload-error">{uploadError}</div>}</div>}</div>
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><h3>配置对比服务</h3><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{systems.slice(0, 2).map((system, index) => <div className="endpoint-row" key={system.id}><span className={`endpoint-tag ${system.color}`}>{index === 0 ? 'A' : 'B'}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div>)}</div><div className="service-actions"><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div></div>
         </section>
 
         <section className="conference-card"><label className="conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><span>{'将作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</span></section>
 
-        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileVideo size={14} /> {video?.name || 'demo_interview_zh.mp4'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaStateLabel}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{progressLabel}</span></div></section>
+        <section className="run-bar"><div className="run-info"><div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div><div className="run-divider" /><span className="file-name"><FileAudio size={14} /> {video?.name || 'sample_audio.wav'}</span><span className="run-meta">· {direction} · 原音同步播放</span><button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button><span className="media-state">{mediaStateLabel}</span></div><div className="progress-wrap"><span>{Math.min(progress, 100)}%</span><div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div><span className="progress-label">{progressLabel}</span></div></section>
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{systems[0]?.label || '系统 A'}</span><span className="url">{systems[0]?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{systems[1]?.url || '未配置'}</span><span className="label">{systems[1]?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div className="timeline-list absolute-timeline" style={{ height: `${timelineLayout.height}px` }}><div className="absolute-axis" />{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 

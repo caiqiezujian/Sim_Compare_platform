@@ -1,6 +1,6 @@
 ﻿# SimCompare 同传对比调试台
 
-SimCompare 是一个用于调试同传 S2TT / gRPC 服务的本地 Web 平台。它支持上传音频或视频，调用一个或两个 gRPC 服务，并在时间轴上查看每个返回包里的 ASR、翻译、日志和 chunk 音频信息。
+SimCompare 是一个用于调试同传 S2TT / gRPC 服务的本地 Web 平台。它支持上传 WAV / MP3 音频，调用一个或两个 gRPC 服务，并在时间轴上查看每个返回包里的 ASR、翻译、日志和 chunk 音频信息。
 
 当前版本的时间轴按 gRPC 返回包组织：时间轴位置使用 ASR 音频结束时间 `ed`。如果同一个返回包里同时包含 ASR 和 MT，前端会把它们展示在同一个 chunk 卡片里。因为当前 MT 没有独立时间戳，所以暂不单独拆成 MT 时间轴事件。
 
@@ -105,7 +105,7 @@ http://127.0.0.1:5173/
 
 1. 在页面里填写 gRPC 地址。
 2. 选择 `zh2en` 或 `en2zh`。
-3. 上传音频或视频。
+3. 上传 WAV 或 MP3 音频。
 4. 点击“开始对比”。
 5. 在时间轴里点击 chunk 卡片查看日志和音频信息。
 
@@ -131,7 +131,9 @@ B: 服务B的 ip:port
 16kHz / mono / 16-bit WAV
 ```
 
-上传 MP4 / MOV 时，后端会尝试用 `ffmpeg` 转成 16kHz mono WAV。如果本机没有 `ffmpeg`，建议先手动准备 WAV 文件。
+上传 MP3 时，后端会尝试用 `ffmpeg` 转成 16kHz mono WAV。如果本机没有 `ffmpeg`，建议先手动准备 16kHz / mono / 16-bit WAV 文件。
+
+当前不支持 MP4 / MOV。请先从视频中导出音频，再上传 WAV 或 MP3。
 
 后端发送音频时按 0.4 秒一个 chunk 发送。对于 16kHz / mono / 16-bit PCM，一个 0.4 秒 chunk 是：
 
@@ -273,7 +275,7 @@ GET  /api/runs/{run_id}/debug/{side}/{chunk_id}/audio
 `POST /api/runs` 表单字段：
 
 ```text
-video      上传的音频或视频文件
+video      上传的 WAV 或 MP3 音频文件
 systems    前端传入的 gRPC 地址列表
 direction  zh2en 或 en2zh
 conference_id  会议 ID，会作为 gRPC sid 和 userinfo.conferenceId 传入

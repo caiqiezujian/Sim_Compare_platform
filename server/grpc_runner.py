@@ -121,11 +121,33 @@ def _result_key(result: dict, fallback_index: int):
     return f"idx:{fallback_index}"
 
 
-def _first_text(result: dict, field: str, default: str = ""):
-    try:
-        return result[field][0]["cw"][0].get("w", default)
-    except (KeyError, IndexError, TypeError, AttributeError):
+def _extract_text(result: dict, field: str, default: str = ""):
+    """Extract text from ws/part/mt_ws/mt_part style fields.
+
+    The service returns text as:
+        [{"cw": [{"w": "..."}]}]
+
+    Some responses may contain multiple segments. Join all non-empty "w"
+    values so the UI does not silently drop text after the first segment.
+    """
+    values = result.get(field)
+    if not isinstance(values, list):
         return default
+
+    pieces = []
+    for segment in values:
+        if not isinstance(segment, dict):
+            continue
+        cws = segment.get("cw")
+        if not isinstance(cws, list):
+            continue
+        for candidate in cws:
+            if not isinstance(candidate, dict):
+                continue
+            text = candidate.get("w")
+            if text:
+                pieces.append(str(text))
+    return "".join(pieces) if pieces else default
 
 
 def run_grpc(
@@ -205,19 +227,33 @@ def run_grpc(
 
             received_at = int((time.monotonic() - started) * 1000)
             if result.get("type") == 1 and result.get("ws"):
-                item["asr"] = _first_text(result, "ws")
+                item["asr"] = _extract_text(result, "ws")
                 item["asr_time"] = item["end"]
                 item["asr_end_time"] = item["end"]
                 item["asr_returned_at"] = received_at
                 item["words"] = result.get("words", [])
                 item["logs"].append(f"ASR final | hold_n={result.get('hold_n', 0)} | returned_at={received_at}ms")
+
+            # part_2_mt is the source text used for MT, not the translated text.
+            # The actual translation result is mt_ws; process-state translation is mt_part.
             if result.get("part_2_mt"):
-                item["mt"] = result["part_2_mt"]
+                item["part_2_mt"] = result["part_2_mt"]
+
             if result.get("mt_type") == 1 and result.get("mt_ws"):
-                item["mt"] = _first_text(result, "mt_ws", item["mt"])
+                item["mt"] = _extract_text(result, "mt_ws", item["mt"])
+                item["mt_status"] = "final"
                 item["mt_time"] = item.get("asr_end_time", item["end"])
                 item["mt_returned_at"] = received_at
                 item["logs"].append(f"MT final | returned_at={received_at}ms")
+            else:
+                mt_partial = _extract_text(result, "mt_part")
+                if mt_partial:
+                    item["mt"] = mt_partial
+                    item["mt_status"] = "partial"
+                    item["mt_part"] = mt_partial
+                    item["mt_time"] = item.get("asr_end_time", item["end"])
+                    item["mt_returned_at"] = received_at
+                    item["logs"].append(f"MT partial | returned_at={received_at}ms")
             item["logs"].insert(0, f"grpc response | sn={result.get('sn', '-')}")
             item["raw"] = result
             if on_update:

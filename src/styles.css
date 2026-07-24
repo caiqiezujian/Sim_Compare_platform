@@ -512,8 +512,9 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 
 .conference-input span {
   color: var(--text-2);
-  font: 700 10px 'DM Mono', monospace;
-  letter-spacing: .08em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .conference-input input {
@@ -524,7 +525,7 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   padding: 0 10px;
   background: var(--panel-2);
   color: var(--text);
-  font: 600 12px 'DM Mono', monospace;
+  font: 500 12px 'Inter', 'Microsoft YaHei', sans-serif;
 }
 
 .direction-switch {
@@ -1443,21 +1444,24 @@ html, body {
 }
 
 .service-bottom-row .conference-input {
-  min-width: 460px;
-  gap: 12px;
+  min-width: 430px;
+  gap: 10px;
 }
 
 .service-bottom-row .conference-input span {
   font-size: 12px;
-  letter-spacing: .06em;
-  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-2);
+  white-space: nowrap;
 }
 
 .service-bottom-row .conference-input input {
-  height: 40px;
+  height: 38px;
   min-width: 280px;
   padding: 0 14px;
   font-size: 13px;
+  font-weight: 500;
   border-radius: 13px;
 }
 

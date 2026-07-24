@@ -103,15 +103,15 @@ function App() {
   const [conferenceId, setConferenceId] = useState(`my_test_${Date.now()}`)
   const [video, setVideo] = useState(null)
   const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState(68)
+  const [progress, setProgress] = useState(0)
   const [runStage, setRunStage] = useState('idle')
   const [activeTab, setActiveTab] = useState('compare')
-  const [selectedChunk, setSelectedChunk] = useState('chunk-03')
+  const [selectedChunk, setSelectedChunk] = useState('')
   const [selectedSide, setSelectedSide] = useState('left')
   const [query, setQuery] = useState('')
   const [showSystemModal, setShowSystemModal] = useState(false)
   const [toast, setToast] = useState('')
-  const [serverState, setServerState] = useState('demo')
+  const [serverState, setServerState] = useState('offline')
   const [serverRunId, setServerRunId] = useState(null)
   const [lastRunId, setLastRunId] = useState(null)
   const [mediaUrl, setMediaUrl] = useState('')
@@ -124,8 +124,8 @@ function App() {
   const [uploadError, setUploadError] = useState('')
   const [debugInfo, setDebugInfo] = useState(null)
   const [debugLoading, setDebugLoading] = useState(false)
-  const [leftItems, setLeftItems] = useState(demoItems)
-  const [rightItems, setRightItems] = useState(demoItems.map((item, i) => ({ ...item, asr: i === 3 ? '从这里开始，两个系统的输出有一点不同。' : item.asr, mt: i === 3 ? 'From this point, the outputs from the systems are slightly different.' : item.mt })))
+  const [leftItems, setLeftItems] = useState([])
+  const [rightItems, setRightItems] = useState([])
   const fileInputRef = useRef(null)
   const mediaRef = useRef(null)
 
@@ -138,6 +138,7 @@ function App() {
       .then(response => response.ok ? response.json() : null)
       .then(config => {
         if (disposed || !config?.services) return
+        setServerState('connected')
         const configured = [config.services.left, config.services.right]
         setSystems(items => items.map((item, index) => {
           const service = configured[index] || {}
@@ -148,7 +149,7 @@ function App() {
           }
         }))
       })
-      .catch(() => {})
+      .catch(() => setServerState('offline'))
     return () => { disposed = true }
   }, [])
 
@@ -278,9 +279,12 @@ function App() {
   ].filter(Boolean)
   const progressLabel = running ? runStage : progress >= 100 ? 'completed' : 'idle'
   const mediaStateLabel = mediaPlaying ? 'playing' : uploadState === 'uploading' ? 'loading' : uploadState === 'failed' ? 'load failed' : mediaUrl ? 'ready' : 'no media'
-  const uploadProgressVisible = uploadState === 'uploading' || uploadState === 'ready' || uploadState === 'failed'
-  const uploadProgressLabel = uploadState === 'uploading' ? `uploading ${uploadProgress}%` : uploadState === 'ready' ? 'upload ready' : uploadState === 'failed' ? 'upload failed' : ''
   const uploadProgressWidth = uploadState === 'failed' ? 100 : uploadProgress
+  const audioPanelMode = uploadState === 'uploading' || uploadState === 'ready' || uploadState === 'failed' ? 'upload' : 'run'
+  const audioPanelStatus = uploadState === 'uploading' ? 'UPLOADING' : uploadState === 'ready' ? 'UPLOAD READY' : uploadState === 'failed' ? 'UPLOAD FAILED' : running ? 'STREAMING' : 'READY'
+  const audioPanelProgress = audioPanelMode === 'upload' ? uploadProgressWidth : running ? progress : 0
+  const audioPanelProgressText = uploadState === 'uploading' ? `${uploadProgress}%` : uploadState === 'ready' ? '100%' : uploadState === 'failed' ? 'error' : running ? `${Math.min(progress, 100)}%` : '0%'
+  const audioPanelLabel = uploadState === 'uploading' ? 'uploading audio' : uploadState === 'ready' ? 'audio ready' : uploadState === 'failed' ? 'upload failed' : progressLabel
 
   const notify = (message) => {
     setToast(message)
@@ -543,9 +547,9 @@ function App() {
   const copyValue = value => { navigator.clipboard?.writeText(value); notify('已复制服务地址') }
 
   const runStatusBar = (
-    <div className="run-bar source-run-bar">
+    <div className={`run-bar source-run-bar ${uploadState === 'failed' ? 'failed' : ''}`}>
       <div className="source-run-top">
-        <div className="run-status"><span className={running ? 'pulse-dot' : 'complete-dot'} /> {running ? 'STREAMING' : 'READY'}</div>
+        <div className="run-status"><span className={running || uploadState === 'uploading' ? 'pulse-dot' : 'complete-dot'} /> {audioPanelStatus}</div>
         <span className="file-name"><FileAudio size={14} /> {video?.name || 'sample_audio.wav'}</span>
         <span className="media-state">{mediaStateLabel}</span>
       </div>
@@ -553,11 +557,12 @@ function App() {
         <span className="run-meta">{direction} · 原音同步播放</span>
         <button className={`media-mute ${mediaMuted ? 'muted' : ''}`} type="button" onClick={toggleMediaMute} disabled={!mediaUrl}>{mediaMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {mediaMuted ? '静音' : '原音'}</button>
         <div className="progress-wrap">
-          <span>{Math.min(progress, 100)}%</span>
-          <div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div>
-          <span className="progress-label">{progressLabel}</span>
+          <span>{audioPanelProgressText}</span>
+          <div className="progress-track"><div className="progress-value" style={{ width: `${audioPanelProgress}%` }} /></div>
+          <span className="progress-label">{audioPanelLabel}</span>
         </div>
       </div>
+      {uploadError && <div className="source-run-error">{uploadError}</div>}
     </div>
   )
 
@@ -565,7 +570,7 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><GitCompareArrows size={19} /></div><div><div className="brand-name">SIM<span>COMPARE</span></div><div className="brand-sub">同传结果调试台</div></div></div>
-        <div className="topbar-center"><div className="live-dot" /> <span>LOCAL WORKSPACE</span><i /> <span className={serverState === 'connected' ? 'server-online' : ''}>{serverState === 'demo' ? '演示数据已加载' : serverState === 'connected' ? 'API CONNECTED' : 'API OFFLINE'}</span></div>
+        <div className="topbar-center"><div className="live-dot" /> <span>LOCAL WORKSPACE</span><i /> <span className={serverState === 'connected' ? 'server-online' : ''}>{serverState === 'connected' ? 'API CONNECTED' : 'API OFFLINE'}</span></div>
         <div className="topbar-actions"><button className="icon-button" title="帮助"><CircleHelp size={18} /></button><button className="icon-button" title="设置"><Settings2 size={18} /></button><div className="avatar">LY</div></div>
       </header>
 
@@ -583,7 +588,7 @@ function App() {
         <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
 
         <section className="control-grid">
-          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音频文件</h3><p>上传 WAV 或 MP3，后端会按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,audio/wav,audio/mpeg" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{uploadProgressVisible && <div className={`upload-progress ${uploadState === 'failed' ? 'failed' : ''}`}><div className="upload-progress-top"><span>{uploadProgressLabel}</span><span>{uploadState === 'uploading' ? `${uploadProgress}%` : uploadState === 'ready' ? '100%' : 'error'}</span></div><div className="upload-progress-track"><div className="upload-progress-value" style={{ width: `${uploadProgressWidth}%` }} /></div>{uploadError && <div className="upload-error">{uploadError}</div>}</div>}{runStatusBar}</div>
+          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音频文件</h3><p>上传 WAV 或 MP3，后端会按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,audio/wav,audio/mpeg" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{systems.slice(0, 2).map((system, index) => <div className="endpoint-row" key={system.id}><span className={`endpoint-tag ${system.color}`}>{index === 0 ? 'A' : 'B'}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div>)}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
         </section>
 

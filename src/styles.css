@@ -303,6 +303,10 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   border-radius: var(--radius-lg);
   background: var(--panel);
 }
+.source-card {
+  display: flex;
+  flex-direction: column;
+}
 .card-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .card-title { display: flex; gap: 10px; align-items: center; }
 .step-number {
@@ -572,12 +576,21 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   display: grid;
   grid-template-columns: 1fr;
   margin-top: 12px;
-  min-height: 46px;
+  min-height: 60px;
   padding: 8px 12px;
   gap: 10px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(248, 252, 255, .96), rgba(255, 255, 255, .9));
   box-shadow: none;
+}
+.source-run-bar.failed {
+  border-color: rgba(239, 68, 68, .28);
+  background: rgba(239, 68, 68, .06);
+}
+.source-run-error {
+  color: #b91c1c;
+  font-size: 11px;
+  line-height: 1.35;
 }
 .source-run-top,
 .source-run-bottom {
@@ -1384,6 +1397,10 @@ html, body {
   padding: 16px 18px 16px;
 }
 
+.source-card {
+  min-height: 232px;
+}
+
 .card-top {
   margin-bottom: 14px;
 }
@@ -1428,6 +1445,11 @@ html, body {
 .upload-progress {
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(232, 246, 252, .86), rgba(255, 255, 255, .7));
+}
+
+.source-card .upload-progress {
+  margin-top: 9px;
+  padding: 7px 10px;
 }
 
 .endpoint-row {
@@ -1513,9 +1535,9 @@ html, body {
   display: grid;
   grid-template-columns: 1fr;
   margin-top: 12px;
-  min-height: 46px;
-  padding: 8px 12px;
-  gap: 10px;
+  min-height: 60px;
+  padding: 7px 10px;
+  gap: 6px;
   border-radius: 14px;
   box-shadow: none;
 }

@@ -121,6 +121,8 @@ function App() {
   const [serverState, setServerState] = useState('offline')
   const [serverRunId, setServerRunId] = useState(null)
   const [lastRunId, setLastRunId] = useState(null)
+  const [runHistory, setRunHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaMuted, setMediaMuted] = useState(false)
   const [mediaPlaying, setMediaPlaying] = useState(false)
@@ -649,6 +651,46 @@ function App() {
     }
   }
 
+  const fetchRunHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/runs`)
+      if (!res.ok) throw new Error('history')
+      const data = await res.json()
+      setRunHistory(Array.isArray(data.runs) ? data.runs : [])
+    } catch {
+      setRunHistory([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+  useEffect(() => { fetchRunHistory() }, [activeTab])
+
+  const loadHistoryRun = async runId => {
+    try {
+      const [runRes, chunksRes] = await Promise.all([
+        fetch(`${API_BASE}/api/runs/${runId}`),
+        fetch(`${API_BASE}/api/runs/${runId}/chunks`),
+      ])
+      const run = runRes.ok ? await runRes.json() : {}
+      const chunks = chunksRes.ok ? await chunksRes.json() : {}
+      setServerRunId(null)
+      setRunning(false)
+      setLeftItems(Array.isArray(chunks.left) ? chunks.left : [])
+      setRightItems(Array.isArray(chunks.right) ? chunks.right : [])
+      setLastRunId(runId)
+      setProgress(run.progress || 0)
+      setRunStage(run.stage || run.status || 'idle')
+      setSelectedChunk('')
+      setSelectedSide('left')
+      setDebugInfo(null)
+      setActiveTab('compare')
+      notify(`已加载任务 ${runId}`)
+    } catch {
+      notify('加载历史任务失败')
+    }
+  }
+
   const handleFile = event => {
     const file = event.target.files?.[0]
     if (file) {
@@ -718,7 +760,7 @@ function App() {
       <aside className="sidebar">
         <div className="side-label">WORKSPACE</div>
         <button className={`nav-item ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}><GitCompareArrows size={17} /> 对比调试</button>
-        <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><History size={17} /> 任务历史 <span className="nav-count">12</span></button>
+        <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><History size={17} /> 任务历史 <span className="nav-count">{runHistory.length}</span></button>
         <div className="side-label service-label">SERVICES</div>
         {systems.map((system, index) => {
           const isSlot = system.id === 'system-a' || system.id === 'system-b'
@@ -776,6 +818,7 @@ function App() {
       </aside>
 
       <main className="main-content">
+        {activeTab === 'compare' && (<>
         <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
 
         <section className="control-grid">
@@ -786,6 +829,39 @@ function App() {
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{slotService('A')?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{slotService('B')?.url || '未配置'}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={`${log}-${index}`}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : JSON.stringify(log)}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
+        </>)}
+        {activeTab === 'history' && (
+          <section className="history-panel">
+            <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> HISTORY</div><h2>任务历史</h2></div><div className="panel-tools"><button className="small-tool" onClick={fetchRunHistory}><RotateCcw size={14} /> 刷新</button></div></div>
+            <div className="history-list">
+              {historyLoading && runHistory.length === 0 && <div className="empty-search">加载中…</div>}
+              {!historyLoading && runHistory.length === 0 && <div className="empty-search">暂无任务历史（后端重启后会清空）</div>}
+              {runHistory.map(run => (
+                <div key={run.run_id} className="history-row" onClick={() => loadHistoryRun(run.run_id)}>
+                  <span className={`status-dot status-${run.status || 'unknown'}`}>{run.status || 'unknown'}</span>
+                  <div className="history-main">
+                    <div className="history-title">{run.conference_id || run.run_id}</div>
+                    <div className="history-meta">
+                      <span>{run.created_at ? new Date(run.created_at * 1000).toLocaleString() : '-'}</span>
+                      <span className="sep">·</span>
+                      <span>{run.direction}</span>
+                      <span className="sep">·</span>
+                      <span>A {run.left_count} / B {run.right_count} chunks</span>
+                      <span className="sep">·</span>
+                      <span>{run.progress || 0}%</span>
+                    </div>
+                    <div className="history-services">
+                      {(run.systems || []).map((s, i) => (
+                        <span key={i} className={`history-svc ${i === 0 ? 'cyan' : 'violet'}`}><span className="badge">{i === 0 ? 'A' : 'B'}</span> {s.label || '系统'} · {s.url}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <Play size={16} className="history-go" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
       {timelineFullscreen && (

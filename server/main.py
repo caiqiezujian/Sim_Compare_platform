@@ -606,9 +606,31 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
         parsed_systems = []
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
     conference_id = conference_id.strip() or f"simcompare_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
-    RUNS[run_id] = {"run_id": run_id, "conference_id": conference_id, "status": "queued", "stage": "queued", "progress": 0, "completed_chunks": 0, "audio_sent_ms": 0, "audio_total_ms": 0, "audio_progress": {}, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False}
+    RUNS[run_id] = {"run_id": run_id, "conference_id": conference_id, "status": "queued", "stage": "queued", "progress": 0, "completed_chunks": 0, "audio_sent_ms": 0, "audio_total_ms": 0, "audio_progress": {}, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False, "created_at": time.time()}
     background_tasks.add_task(process_run, run_id, video_path, parsed_systems, direction, conference_id)
     return {"run_id": run_id, "status": "queued", "conference_id": conference_id}
+
+
+@app.get("/api/runs")
+async def list_runs():
+    items = []
+    for run in RUNS.values():
+        items.append({
+            "run_id": run.get("run_id"),
+            "conference_id": run.get("conference_id"),
+            "direction": run.get("direction"),
+            "status": run.get("status"),
+            "stage": run.get("stage"),
+            "progress": run.get("progress", 0),
+            "completed_chunks": run.get("completed_chunks", 0),
+            "created_at": run.get("created_at", 0),
+            "cancelled": run.get("cancelled", False),
+            "systems": run.get("systems", []),
+            "left_count": len(run.get("left", [])),
+            "right_count": len(run.get("right", [])),
+        })
+    items.sort(key=lambda item: item.get("created_at", 0), reverse=True)
+    return {"runs": items, "count": len(items)}
 
 
 @app.get("/api/runs/{run_id}")

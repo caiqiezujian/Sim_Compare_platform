@@ -122,7 +122,10 @@ def create_upload_temp_file(filename: str, default_suffix: str):
 
 
 def is_supported_audio(filename: str):
-    return Path(filename or "").suffix.lower() in {".wav", ".wave", ".mp3"}
+    return Path(filename or "").suffix.lower() in {
+        ".wav", ".wave", ".mp3",
+        ".mp4", ".mov", ".m4a", ".m4v", ".webm", ".mkv", ".avi", ".flv",
+    }
 
 
 def split_log_records(text: str):
@@ -576,7 +579,7 @@ def notify_config_watchers() -> None:
 @app.post("/api/uploads")
 async def create_upload(video: UploadFile = File(...)):
     if not is_supported_audio(video.filename or ""):
-        return JSONResponse(status_code=400, content={"detail": "only wav, wave and mp3 files are supported"})
+        return JSONResponse(status_code=400, content={"detail": "only wav, mp3, mp4, mov, m4a, webm, mkv, avi files are supported"})
     upload_id = f"upload_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
     temp = create_upload_temp_file(video.filename or ".wav", ".wav")
     with temp as output:
@@ -593,7 +596,7 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
         video_path = upload["path"]
     elif video:
         if not is_supported_audio(video.filename or ""):
-            return JSONResponse(status_code=400, content={"detail": "only wav, wave and mp3 files are supported"})
+            return JSONResponse(status_code=400, content={"detail": "only wav, mp3, mp4, mov, m4a, webm, mkv, avi files are supported"})
         temp = create_upload_temp_file(video.filename or ".wav", ".wav")
         with temp as output:
             shutil.copyfileobj(video.file, output)

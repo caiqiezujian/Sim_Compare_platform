@@ -830,35 +830,43 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .timeline-list {
   background: var(--panel);
   position: relative;
-  max-height: 60vh;
+  height: 60vh;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
 .timeline-list::-webkit-scrollbar { width: 6px; }
 .timeline-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .timeline-list::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
-.timeline-list-follow {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 8px;
-  padding: 4px 10px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-3);
-  font: 600 10px 'DM Mono', monospace;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  cursor: pointer;
-  user-select: none;
-}
-.timeline-list-follow.active { color: var(--cyan); border-color: var(--cyan); background: var(--cyan-soft); }
 .absolute-timeline {
+  overflow-x: hidden;
+}
+
+/* ============ 时间轴全屏 overlay ============ */
+.timeline-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--panel);
+  display: flex;
+  padding: 16px 20px;
+}
+.timeline-fullscreen-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
   overflow: hidden;
+}
+.timeline-fullscreen-inner .panel-heading,
+.timeline-fullscreen-inner .timeline-header,
+.timeline-fullscreen-inner .timeline-footer { flex-shrink: 0; }
+.timeline-list.is-fullscreen {
+  flex: 1;
+  height: auto;
+  max-height: none;
 }
 .absolute-axis {
   position: absolute;

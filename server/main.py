@@ -14,14 +14,23 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import config_loaded, config_path, runtime_config, service_config, storage_config
+from .config import (
+    config_loaded,
+    config_path,
+    CONFIG,
+    reload_config,
+    runtime_config,
+    save_config,
+    service_config,
+    storage_config,
+)
 
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
@@ -460,6 +469,108 @@ async def get_config():
             "upload_dir_configured": bool(os.getenv("SIMCOMPARE_UPLOAD_DIR") or storage_config().get("upload_dir")),
         },
     }
+
+
+# Known top-level keys we accept from the UI when persisting config.  Anything
+# else is rejected so the file never ends up with surprise fields.
+_ALLOWED_CONFIG_KEYS = {"services", "runtime", "storage"}
+
+
+def _coerce_service_entry(raw: Any) -> Dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise ValueError("service entry must be an object")
+    label = str(raw.get("label") or "").strip()
+    grpc_url = str(raw.get("grpc_url") or raw.get("url") or "").strip()
+    debug_log = str(raw.get("debug_log") or raw.get("debugLog") or "").strip()
+    debug_root = str(raw.get("debug_root") or raw.get("debugRoot") or "").strip()
+    return {
+        "label": label,
+        "grpc_url": grpc_url,
+        "debug_log": debug_log,
+        "debug_root": debug_root,
+    }
+
+
+def _coerce_services(raw: Any) -> Dict[str, Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        raise ValueError("services must be an object keyed by side")
+    coerced: Dict[str, Dict[str, Any]] = {}
+    for side in ("left", "right"):
+        coerced[side] = _coerce_service_entry(raw.get(side) or {})
+    return coerced
+
+
+@app.put("/api/config")
+async def update_config(payload: Dict[str, Any]):
+    """Persist the runtime config and reload it in-process.
+
+    Frontend sends ``{services: {left: {...}, right: {...}}, runtime?, storage?}``.
+    Anything outside ``_ALLOWED_CONFIG_KEYS`` is rejected with 400 so the file
+    stays clean.  We always rewrite all three services slots, so a missing
+    side falls back to the placeholder value used in the UI.
+    """
+    unknown = set(payload.keys()) - _ALLOWED_CONFIG_KEYS
+    if unknown:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"unknown config keys: {sorted(unknown)}"},
+        )
+    try:
+        services = _coerce_services(payload.get("services") or {})
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    next_payload: Dict[str, Any] = {"services": services}
+    if "runtime" in payload:
+        runtime = payload.get("runtime")
+        if not isinstance(runtime, dict):
+            return JSONResponse(status_code=400, content={"detail": "runtime must be an object"})
+        next_payload["runtime"] = runtime
+    if "storage" in payload:
+        storage = payload.get("storage")
+        if not isinstance(storage, dict):
+            return JSONResponse(status_code=400, content={"detail": "storage must be an object"})
+        next_payload["storage"] = storage
+
+    # Merge against the current in-memory config so callers can pass only the
+    # keys they care about (the UI only knows about ``services``).  We strip
+    # internal ``_*`` metadata before persisting.
+    base: Dict[str, Any] = {
+        key: value for key, value in CONFIG.items() if not key.startswith("_")
+    }
+    merged: Dict[str, Any] = {**base, **next_payload}
+
+    try:
+        save_config(merged)
+    except OSError as exc:
+        logger.exception("failed to persist config")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"failed to write config: {exc}"},
+        )
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    notify_config_watchers()
+    return await get_config()
+
+
+# In-process subscribers for the "config changed" signal.  Hooks registered via
+# ``add_config_listener`` will be invoked after a successful PUT so other parts
+# of the server (e.g. log_fetcher caches) can re-read paths / endpoints.
+_CONFIG_LISTENERS: list = []
+
+
+def add_config_listener(callback) -> None:
+    _CONFIG_LISTENERS.append(callback)
+
+
+def notify_config_watchers() -> None:
+    for callback in list(_CONFIG_LISTENERS):
+        try:
+            callback()
+        except Exception:
+            logger.exception("config listener %r failed", callback)
 
 
 @app.post("/api/uploads")

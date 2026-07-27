@@ -674,20 +674,42 @@ function App() {
       ])
       const run = runRes.ok ? await runRes.json() : {}
       const chunks = chunksRes.ok ? await chunksRes.json() : {}
-      setServerRunId(null)
-      setRunning(false)
+      const isActive = !['completed', 'cancelled', 'partial_completed', 'failed'].includes(run.status)
       setLeftItems(Array.isArray(chunks.left) ? chunks.left : [])
       setRightItems(Array.isArray(chunks.right) ? chunks.right : [])
       setLastRunId(runId)
-      setProgress(run.progress || 0)
-      setRunStage(run.stage || run.status || 'idle')
       setSelectedChunk('')
       setSelectedSide('left')
       setDebugInfo(null)
       setActiveTab('compare')
-      notify(`已加载任务 ${runId}`)
+      if (isActive) {
+        setServerRunId(runId)
+        setRunning(true)
+        setRunStage(run.stage || run.status || 'running')
+        notify(`已恢复实时任务 ${runId}`)
+      } else {
+        setServerRunId(null)
+        setRunning(false)
+        setProgress(run.progress || 0)
+        setRunStage(run.stage || run.status || 'idle')
+        notify(`已加载任务 ${runId}`)
+      }
     } catch {
       notify('加载历史任务失败')
+    }
+  }
+
+  const goToCompare = () => {
+    setActiveTab('compare')
+    const activeRun = runHistory.find(r => r && !['completed', 'cancelled', 'partial_completed', 'failed'].includes(r.status))
+    if (activeRun && activeRun.run_id !== serverRunId) {
+      setLeftItems([])
+      setRightItems([])
+      setServerRunId(activeRun.run_id)
+      setRunning(true)
+      setLastRunId(activeRun.run_id)
+      setRunStage(activeRun.stage || activeRun.status || 'running')
+      notify(`已恢复实时任务 ${activeRun.run_id}`)
     }
   }
 
@@ -759,7 +781,7 @@ function App() {
 
       <aside className="sidebar">
         <div className="side-label">WORKSPACE</div>
-        <button className={`nav-item ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}><GitCompareArrows size={17} /> 对比调试</button>
+        <button className={`nav-item ${activeTab === 'compare' ? 'active' : ''}`} onClick={goToCompare}><GitCompareArrows size={17} /> 对比调试</button>
         <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><History size={17} /> 任务历史 <span className="nav-count">{runHistory.length}</span></button>
         <div className="side-label service-label">SERVICES</div>
         {systems.map((system, index) => {

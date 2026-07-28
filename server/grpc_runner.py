@@ -9,6 +9,9 @@ import time
 import wave
 from pathlib import Path
 
+from .config import glossary_config
+from .ner import extract_entities
+
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
 SEND_SAMPLES = 400 * 16
@@ -174,6 +177,8 @@ def run_grpc(
 
     pcm, duration = _audio_samples(audio_file)
     deadline = timeout or max(60, int(duration * 2.5 + 30))
+    mt_lang = "en" if lang == "zh" else "zh"
+    glossary = glossary_config()
     chunks = {}
     started = time.monotonic()
     channel_options = (("grpc.enable_http_proxy", 0),)
@@ -228,6 +233,7 @@ def run_grpc(
             received_at = int((time.monotonic() - started) * 1000)
             if result.get("type") == 1 and result.get("ws"):
                 item["asr"] = _extract_text(result, "ws")
+                item["asr_entities"] = extract_entities(item["asr"], lang, glossary)
                 item["asr_time"] = item["end"]
                 item["asr_end_time"] = item["end"]
                 item["asr_returned_at"] = received_at
@@ -241,6 +247,7 @@ def run_grpc(
 
             if result.get("mt_type") == 1 and result.get("mt_ws"):
                 item["mt"] = _extract_text(result, "mt_ws", item["mt"])
+                item["mt_entities"] = extract_entities(item["mt"], mt_lang, glossary)
                 item["mt_status"] = "final"
                 item["mt_time"] = item.get("asr_end_time", item["end"])
                 item["mt_returned_at"] = received_at
@@ -249,6 +256,7 @@ def run_grpc(
                 mt_partial = _extract_text(result, "mt_part")
                 if mt_partial:
                     item["mt"] = mt_partial
+                    item["mt_entities"] = extract_entities(item["mt"], mt_lang, glossary)
                     item["mt_status"] = "partial"
                     item["mt_part"] = mt_partial
                     item["mt_time"] = item.get("asr_end_time", item["end"])

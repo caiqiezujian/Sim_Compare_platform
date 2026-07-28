@@ -153,6 +153,53 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   font: 11px 'DM Mono', monospace;
 }
 
+.route-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.route-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  color: var(--text-2);
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: all .12s ease;
+}
+.route-item:hover { background: var(--panel-3); color: var(--text); }
+.route-item.active { color: var(--text); background: var(--cyan-soft); border-color: var(--cyan); }
+.route-item.active svg { color: var(--cyan); }
+
+.placeholder-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  overflow: hidden;
+}
+.placeholder-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-3);
+}
+.placeholder-body svg { opacity: .55; }
+.placeholder-body strong { color: var(--text-2); font-size: 15px; }
+.placeholder-body p { max-width: 420px; margin: 0; font-size: 12.5px; line-height: 1.6; }
+
 .service-label {
   padding-top: 18px;
   padding-left: 12px;
@@ -1099,6 +1146,25 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   font-size: 13px;
 }
 .result-text.mt-text { color: var(--text-2); font-size: 12.5px; font-style: italic; }
+
+/* ============ 实体高亮 ============ */
+.entity {
+  padding: 0 2px;
+  margin: 0 1px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-style: normal;
+  background: var(--panel-3);
+  color: var(--text);
+}
+.entity.type-number { background: rgba(0, 145, 255, .14); color: #0a7ab8; }
+.entity.type-date { background: rgba(224, 164, 85, .16); color: #b06a00; }
+.entity.type-person { background: rgba(91, 63, 192, .14); color: #5b3fc0; }
+.entity.type-place { background: rgba(34, 154, 90, .14); color: #1f8a52; }
+.entity.type-org { background: rgba(38, 110, 196, .14); color: #1f6db8; }
+.entity.type-term { background: rgba(214, 51, 132, .14); color: #c0337e; }
+.entity.type-eng { background: rgba(120, 130, 145, .16); color: #5a6473; }
+.entity.type-url { background: rgba(0, 130, 120, .14); color: #007a70; text-decoration: underline; text-underline-offset: 2px; }
 .bundle-lines {
   display: grid;
   gap: 6px;

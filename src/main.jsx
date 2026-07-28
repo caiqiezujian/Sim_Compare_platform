@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   AudioLines, Check, ChevronDown, CircleHelp, Clock3, Copy, FileAudio,
-  FolderOpen, GitCompareArrows, Headphones, History, Info, Languages,
+  FolderOpen, Gauge, GitCompareArrows, Headphones, History, Info, Languages,
   Link2, ListFilter, LoaderCircle, Logs, Maximize2, Menu, Minus, Pause, Pencil, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, TerminalSquare,
   UploadCloud, Volume2, VolumeX, X, Zap
@@ -35,6 +35,22 @@ function formatTime(ms) {
   const seconds = Math.floor(ms / 1000)
   const minutes = Math.floor(seconds / 60)
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`
+}
+
+function renderHighlighted(text, entities) {
+  if (!text) return text
+  if (!Array.isArray(entities) || entities.length === 0) return text
+  const out = []
+  let cursor = 0
+  entities.forEach((ent, i) => {
+    const start = Math.max(0, Math.min(ent.start, text.length))
+    const end = Math.max(start, Math.min(ent.end, text.length))
+    if (start > cursor) out.push(text.slice(cursor, start))
+    if (end > start) out.push(<mark key={`ent-${i}`} className={`entity type-${ent.type || 'term'}`}>{text.slice(start, end)}</mark>)
+    cursor = end
+  })
+  if (cursor < text.length) out.push(text.slice(cursor))
+  return out
 }
 
 function eventStamp(item, side, index) {
@@ -112,6 +128,7 @@ function App() {
   const [progress, setProgress] = useState(0)
   const [runStage, setRunStage] = useState('idle')
   const [activeTab, setActiveTab] = useState('compare')
+  const [activeRoute, setActiveRoute] = useState('compare')
   const [selectedChunk, setSelectedChunk] = useState('')
   const [selectedSide, setSelectedSide] = useState('left')
   const [query, setQuery] = useState('')
@@ -297,8 +314,8 @@ function App() {
   const selectedChunkId = selected?.chunk_id ?? selected?.sn ?? selected?.id ?? ''
   const debugAudioUrl = selectedDebug.audio_url ? `${API_BASE}${selectedDebug.audio_url}` : ''
   const inspectorLogs = [
-    selectedDebugAsr.src_text ? `ASR: ${selectedDebugAsr.src_text}` : selected?.asr ? `ASR: ${selected.asr}` : '',
-    selectedDebugMt.tgt_text ? `MT: ${selectedDebugMt.tgt_text}` : selected?.mt ? `MT: ${selected.mt}` : '',
+    selectedDebugAsr.src_text ? { label: 'ASR', text: selectedDebugAsr.src_text, entities: [] } : selected?.asr ? { label: 'ASR', text: selected.asr, entities: selected.asr_entities || [] } : null,
+    selectedDebugMt.tgt_text ? { label: 'MT', text: selectedDebugMt.tgt_text, entities: [] } : selected?.mt ? { label: 'MT', text: selected.mt, entities: selected.mt_entities || [] } : null,
     ...(Array.isArray(selectedDebug.logs) ? selectedDebug.logs : selected?.logs || []),
     selectedDebug.debug_found === false ? 'debug log not found' : '',
     selectedDebug.audio_found === false ? 'debug audio not found' : '',
@@ -418,8 +435,10 @@ function App() {
     const form = new FormData(event.currentTarget)
     const url = String(form.get('url') || '').trim()
     const label = String(form.get('label') || '').trim() || '自定义服务'
+    const debug_log = String(form.get('debug_log') || '').trim()
+    const debug_root = String(form.get('debug_root') || '').trim()
     if (!url) return
-    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, language: 'zh → en', color: 'amber', enabled: true }
+    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, language: 'zh → en', color: 'amber', enabled: true, debug_log, debug_root }
     setSystems(items => [...items, next])
     setSelectedSystem(next.id)
     setShowSystemModal(false)
@@ -700,6 +719,7 @@ function App() {
   }
 
   const goToCompare = () => {
+    setActiveRoute('compare')
     setActiveTab('compare')
     const activeRun = runHistory.find(r => r && !['completed', 'cancelled', 'partial_completed', 'failed'].includes(r.status))
     if (activeRun && activeRun.run_id !== serverRunId) {
@@ -780,9 +800,19 @@ function App() {
       </header>
 
       <aside className="sidebar">
+        <div className="route-switch">
+          <button className={`route-item ${activeRoute === 'compare' ? 'active' : ''}`} onClick={() => setActiveRoute('compare')}><GitCompareArrows size={16} /> 同传对比调试</button>
+          <button className={`route-item ${activeRoute === 'evaluation' ? 'active' : ''}`} onClick={() => setActiveRoute('evaluation')}><Gauge size={16} /> 同传质量评估</button>
+        </div>
+        {activeRoute === 'compare' && (<>
         <div className="side-label">WORKSPACE</div>
         <button className={`nav-item ${activeTab === 'compare' ? 'active' : ''}`} onClick={goToCompare}><GitCompareArrows size={17} /> 对比调试</button>
         <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><History size={17} /> 任务历史 <span className="nav-count">{runHistory.length}</span></button>
+        </>)}
+        {activeRoute === 'evaluation' && (<>
+        <div className="side-label">EVALUATION</div>
+        <button className="nav-item active"><Gauge size={17} /> 质量评估</button>
+        </>)}
         <div className="side-label service-label">SERVICES</div>
         {systems.map((system, index) => {
           const isSlot = system.id === 'system-a' || system.id === 'system-b'
@@ -840,7 +870,7 @@ function App() {
       </aside>
 
       <main className="main-content">
-        {activeTab === 'compare' && (<>
+        {activeRoute === 'compare' && activeTab === 'compare' && (<>
         <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
 
         <section className="control-grid">
@@ -850,9 +880,9 @@ function App() {
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{slotService('A')?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{slotService('B')?.url || '未配置'}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
-        <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={`${log}-${index}`}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : JSON.stringify(log)}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
+        <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={index}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : (log && log.label ? <>{log.label}: {renderHighlighted(log.text, log.entities)}</> : JSON.stringify(log))}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
         </>)}
-        {activeTab === 'history' && (
+        {activeRoute === 'compare' && activeTab === 'history' && (
           <section className="history-panel">
             <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> HISTORY</div><h2>任务历史</h2></div><div className="panel-tools"><button className="small-tool" onClick={fetchRunHistory}><RotateCcw size={14} /> 刷新</button></div></div>
             <div className="history-list">
@@ -884,6 +914,16 @@ function App() {
             </div>
           </section>
         )}
+        {activeRoute === 'evaluation' && (
+          <section className="placeholder-panel">
+            <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> EVALUATION</div><h2>同传翻译质量评估</h2></div></div>
+            <div className="placeholder-body">
+              <Gauge size={28} />
+              <strong>功能开发中</strong>
+              <p>这里将提供同传翻译结果的自动化质量评估指标（如 BLEU、字错率、延迟、流畅度等），敬请期待。</p>
+            </div>
+          </section>
+        )}
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
       {timelineFullscreen && (
@@ -904,7 +944,7 @@ function App() {
         </div>
       )}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
-      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加 gRPC 服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：我的本地测试版" autoFocus /></label><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><div className="modal-hint"><Info size={14} /> 支持 host:port 格式。后端会将此地址传入流式调用。</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加地址</button></div></form></div></div>}
+      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加 gRPC 服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：我的本地测试版" autoFocus /></label><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details><div className="modal-hint"><Info size={14} /> 支持 host:port 格式。后端会将此地址传入流式调用。</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加地址</button></div></form></div></div>}
       {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑服务{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details><div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
     </div>
   )
@@ -931,11 +971,11 @@ function TimelineResultCard({ event, selectedChunk, selectedSide, onSelect }) {
       <div className="bundle-lines">
         <div className="bundle-line asr-line">
           <span className="bundle-label"><AudioLines size={12} /> ASR</span>
-          {asrReady ? <p className="result-text asr-text">{item.asr}</p> : <div className="result-placeholder"><LoaderCircle size={14} className="spin" /><span>ASR 尚未返回</span></div>}
+          {asrReady ? <p className="result-text asr-text">{renderHighlighted(item.asr, item.asr_entities)}</p> : <div className="result-placeholder"><LoaderCircle size={14} className="spin" /><span>ASR 尚未返回</span></div>}
         </div>
         <div className="bundle-line mt-line">
           <span className="bundle-label"><Languages size={12} /> MT</span>
-          {mtReady ? <p className="result-text mt-text">{item.mt}</p> : null}
+          {mtReady ? <p className="result-text mt-text">{renderHighlighted(item.mt, item.mt_entities)}</p> : null}
         </div>
       </div>
       <div className="event-meta"><span>CHUNK {String(chunkIndex).padStart(2, '0')}</span><span>{formatTime(item.start || 0)} — {formatTime(item.end || 0)}</span></div>

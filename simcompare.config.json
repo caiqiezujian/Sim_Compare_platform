@@ -20,5 +20,6 @@
     "debug_log_max_bytes": 33554432,
     "debug_context_before": 24,
     "debug_context_after": 8
-  }
+  },
+  "glossary": []
 }

@@ -23,7 +23,7 @@
   },
   "glossary": [],
   "ner": {
-    "use_transformers": false,
+    "use_transformers": true,
     "transformers_threshold": 0.5
   }
 }

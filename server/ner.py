@@ -264,11 +264,14 @@ def _get_transformers_pipeline(lang: str):
     try:
         from .config import ner_config
         cfg = ner_config()
-        if not cfg.get("use_transformers"):
+        use_flag = os.getenv("SIMCOMPARE_NER_USE_TRANSFORMERS")
+        enabled = (use_flag.strip().lower() in ("1", "true", "yes", "on")) if use_flag is not None else bool(cfg.get("use_transformers"))
+        if not enabled:
             return None
         global _local_model_scanned
         if not _local_model_scanned:
-            _local_model_cache.update(_find_local_models(cfg.get("model_dir") or "/data/yb/model"))
+            model_dir = os.getenv("SIMCOMPARE_NER_MODEL_DIR") or cfg.get("model_dir") or "/data/yb/model"
+            _local_model_cache.update(_find_local_models(model_dir))
             _local_model_scanned = True
         model_id = _local_model_cache.get(lang)
         if not model_id:

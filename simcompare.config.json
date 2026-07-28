@@ -21,5 +21,11 @@
     "debug_context_before": 24,
     "debug_context_after": 8
   },
-  "glossary": []
+  "glossary": [],
+  "ner": {
+    "use_transformers": false,
+    "transformers_model_zh": "uer/roberta-base-finetuned-cluener2020-chinese",
+    "transformers_model_en": "elastic/distilbert-base-uncased-finetuned-conll03-english",
+    "transformers_threshold": 0.5
+  }
 }

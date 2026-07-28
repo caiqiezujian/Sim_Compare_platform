@@ -1,0 +1,15 @@
+# Optional: transformers NER backend for entity highlighting.
+# Only needed if you enable `ner.use_transformers` in simcompare.config.json.
+# Install IN ADDITION to server/requirements.txt.
+#
+# IMPORTANT: install in a CLEAN Python 3.10/3.11 venv. Do NOT mix into an env
+# that has old scipy/numba pinning numpy<1.23 (e.g. numpy 1.21.6) -- the torch
+# C extensions are built against the numpy 2.x ABI and will segfault on load.
+# A fresh venv gets a consistent numpy 2.x and works fine.
+#
+# Linux CPU-only torch:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Windows CPU-only torch:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.40,<5.0
+torch

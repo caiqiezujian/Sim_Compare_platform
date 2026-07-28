@@ -1,14 +1,17 @@
 """Lightweight named-entity extraction for ASR/MT text.
 
-Combines regex patterns (numbers, dates, URLs, English runs), jieba POS tagging
-for Chinese proper nouns, and an optional team glossary.  Returns character-span
-annotations that the frontend renders as highlighted ``<mark>`` tokens.
+Combines improved regex patterns (alphanumeric tokens like A100/GPT-4, numbers
+with units like 12万/5.2%/12万美元, dates, URLs, English runs), jieba POS tagging
+for Chinese proper nouns (boosted by an optional bundled user dictionary under
+``server/data/dict/*.txt``), and a team glossary.  Returns character-span
+annotations the frontend renders as ``<mark>`` tokens.
 
-The result is a list of ``{start, end, text, type}`` dicts with ``start``/``end``
-being character offsets into the input string.  Spans are non-overlapping
-(greedily resolved: earlier start wins, longer span wins, glossary > regex > jieba).
+The result is a list of ``{start, end, text, type}`` dicts with non-overlapping
+spans (greedily resolved: earlier start wins, longer span wins,
+glossary > regex > jieba).
 """
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 # jieba POS tags we treat as Chinese proper nouns -> entity type.
@@ -20,28 +23,65 @@ _ZH_PROPER_POS = {
 }
 
 _posseg = None
+_userdict_loaded = False
+
+
+def _load_user_dicts(jieba_module) -> None:
+    """Load every ``*.txt`` under server/data/dict/ as a jieba user dictionary.
+
+    Files use the jieba userdict format ``word freq tag`` (freq/tag optional).
+    Drop HanLP (Apache-2.0) name/place/org lists or a team term list here and
+    they are picked up on first use -- no code change needed.
+    """
+    dict_dir = Path(__file__).resolve().parent / "data" / "dict"
+    if not dict_dir.is_dir():
+        return
+    for dict_file in sorted(dict_dir.glob("*.txt")):
+        try:
+            jieba_module.load_userdict(str(dict_file))
+        except Exception:
+            pass
 
 
 def _get_posseg():
-    """Lazy-load jieba.posseg so the module imports even before jieba is installed."""
-    global _posseg
+    """Lazy-load jieba.posseg (and user dicts) so the module imports cleanly
+    even before jieba is installed."""
+    global _posseg, _userdict_loaded
     if _posseg is None:
+        import jieba
         import jieba.posseg  # type: ignore
         _posseg = jieba.posseg
+        if not _userdict_loaded:
+            _load_user_dicts(jieba)
+            _userdict_loaded = True
     return _posseg
 
 
 _URL_RE = re.compile(r"https?://[^\s，。、,]+|www\.[^\s，。、,]+")
+# Dates: 2024-01-15 / 2024年1月15日 / 2024年1月 / 1月15日 / 12:30 / 2024年
 _DATE_RE = re.compile(
     r"\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}日?"
+    r"|\d{4}年\d{1,2}月"
     r"|\d{1,2}月\d{1,2}日"
     r"|\d{1,2}[:：]\d{1,2}(?::\d{1,2})?"
+    r"|\d{4}年"
 )
-_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?%?")
+# Number with optional Chinese multiplier + unit: 12 / 5.2% / 12万 / 12万美元 / 1.7万亿 / 2024年 / 3天
+_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?(?:[万亿千百十两]+)?\s*[%％元美元人民币块年月日天时分秒个倍次度吨公斤斤]*")
+# Pure Chinese numerals: 一百 / 万亿 / 二零二四 (filtered for length below).
 _ZH_NUMERAL_RE = re.compile(r"[零一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]+")
+# A contiguous alphanumeric (with hyphens) run; we keep those with BOTH a letter
+# and a digit as "term": A100, GPT-4, iPhone15, 5G, RTX4090.
+_TOKEN_RUN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+# Pure English runs inside Chinese text: GDP, OpenAI, CEO.
 _ENG_RE = re.compile(r"[A-Za-z]{2,}")
-# English proper-noun phrase: "Apple", "New York", "United States".
+# English proper-noun phrase in English text: Apple, New York, United States.
 _EN_PROPER_RE = re.compile(r"[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*")
+
+
+def _is_noise_number(seg: str) -> bool:
+    # Drop bare single-char numbers (e.g. "3", "一", "万") -- too noisy.
+    return len(seg) < 2
 
 
 def _regex_spans(text: str, lang: str) -> List[Tuple[int, int, str, str]]:
@@ -50,11 +90,23 @@ def _regex_spans(text: str, lang: str) -> List[Tuple[int, int, str, str]]:
         spans.append((match.start(), match.end(), match.group(0), "url"))
     for match in _DATE_RE.finditer(text):
         spans.append((match.start(), match.end(), match.group(0), "date"))
+    # Alphanumeric tokens (letters + digits) -> term. Pure-letter / pure-digit
+    # runs are left to _ENG_RE / _EN_PROPER_RE / _NUMBER_RE below.
+    for match in _TOKEN_RUN_RE.finditer(text):
+        seg = match.group(0)
+        if any(c.isalpha() for c in seg) and any(c.isdigit() for c in seg):
+            spans.append((match.start(), match.end(), seg, "term"))
     for match in _NUMBER_RE.finditer(text):
-        spans.append((match.start(), match.end(), match.group(0), "number"))
+        seg = match.group(0)
+        if _is_noise_number(seg):
+            continue
+        spans.append((match.start(), match.end(), seg, "number"))
     if lang == "zh":
         for match in _ZH_NUMERAL_RE.finditer(text):
-            spans.append((match.start(), match.end(), match.group(0), "number"))
+            seg = match.group(0)
+            if _is_noise_number(seg):
+                continue
+            spans.append((match.start(), match.end(), seg, "number"))
         for match in _ENG_RE.finditer(text):
             spans.append((match.start(), match.end(), match.group(0), "eng"))
     else:
@@ -109,14 +161,14 @@ def _glossary_spans(text: str, glossary: List[Dict[str, Any]]) -> List[Tuple[int
 def extract_entities(text: str, lang: str, glossary: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Return non-overlapping entity spans for ``text``.
 
-    ``lang`` is the ASR/MT language of this text (``"zh"`` or ``"en"``); Chinese
-    text gets jieba POS tagging in addition to regex.  ``glossary`` is an optional
+    ``lang`` is the language of this text (``"zh"`` or ``"en"``); Chinese text
+    gets jieba POS tagging in addition to regex.  ``glossary`` is an optional
     list of ``{"term": ..., "type": ...}`` dicts from the team config.
     """
     if not text:
         return []
     lang = (lang or "").lower()
-    # (start, end, text, type, priority)  -- higher priority wins ties.
+    # (start, end, text, type, priority) -- higher priority wins ties.
     spans: List[Tuple[int, int, str, str, int]] = []
     spans.extend((s[0], s[1], s[2], s[3], 2) for s in _regex_spans(text, lang))
     if lang == "zh":

@@ -1,0 +1,81 @@
+# jieba user dictionary seed for SimCompare entity highlighting.
+# Format: word freq tag   (freq/tag optional; tag = nr人名 ns地名 nt机构 nz专有/术语)
+# Drop HanLP (Apache-2.0) name/place/org lists or extra team terms here -- they
+# are auto-loaded by server/ner.py on first use. Lines starting with # are ignored
+# by jieba only if blank; keep comments on their own line (jieba skips blank lines).
+
+# ---- 科技公司 / 机构 (nt) ----
+苹果公司 1000 nt
+谷歌公司 1000 nt
+微软公司 1000 nt
+亚马逊公司 1000 nt
+字节跳动 1000 nt
+阿里巴巴 1000 nt
+腾讯公司 1000 nt
+百度公司 1000 nt
+华为公司 1000 nt
+三星电子 1000 nt
+特斯拉公司 1000 nt
+英伟达公司 1000 nt
+脸书公司 1000 nt
+元宇宙平台公司 1000 nt
+OpenAI 1000 nt
+联合国 1000 nt
+世界卫生组织 1000 nt
+世界贸易组织 1000 nt
+欧洲联盟 1000 nt
+北大西洋公约组织 1000 nt
+亚太经合组织 1000 nt
+国际货币基金组织 1000 nt
+世界银行 1000 nt
+国务院 1000 nt
+国家发展改革委 1000 nt
+工业和信息化部 1000 nt
+
+# ---- 人工智能 / 技术术语 (nz) ----
+人工智能 1000 nz
+机器学习 1000 nz
+深度学习 1000 nz
+神经网络 1000 nz
+大模型 1000 nz
+大语言模型 1000 nz
+自然语言处理 1000 nz
+计算机视觉 1000 nz
+语音识别 1000 nz
+图像识别 1000 nz
+知识图谱 1000 nz
+强化学习 1000 nz
+生成式人工智能 1000 nz
+联邦学习 1000 nz
+迁移学习 1000 nz
+区块链 1000 nz
+云计算 1000 nz
+边缘计算 1000 nz
+大数据 1000 nz
+物联网 1000 nz
+量子计算 1000 nz
+数字孪生 1000 nz
+增强现实 1000 nz
+虚拟现实 1000 nz
+元宇宙 1000 nz
+芯片制造 1000 nz
+半导体工艺 1000 nz
+
+# ---- 常见外国译名 (nr) ----
+蒂姆库克 1000 nr
+埃隆马斯克 1000 nr
+比尔盖茨 1000 nr
+杰夫贝索斯 1000 nr
+马克扎克伯格 1000 nr
+桑达尔皮查伊 1000 nr
+萨蒂亚纳德拉 1000 nr
+黄仁勋 1000 nr
+拜登 1000 nr
+特朗普 1000 nr
+奥巴马 1000 nr
+普京 1000 nr
+泽连斯基 1000 nr
+默克尔 1000 nr
+马克龙 1000 nr
+苏纳克 1000 nr
+岸田文雄 1000 nr

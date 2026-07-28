@@ -238,8 +238,16 @@ def _get_transformers_pipeline(lang: str):
             return None
         default_path = _TRANSFORMERS_MODEL_ZH if lang == "zh" else _TRANSFORMERS_MODEL_EN
         model_path = os.getenv("SIMCOMPARE_NER_MODEL_ZH" if lang == "zh" else "SIMCOMPARE_NER_MODEL_EN", default_path)
+        # Device: default cuda:0 if a GPU is available, else CPU. Override with
+        # env SIMCOMPARE_NER_DEVICE (e.g. "cuda:0", "cuda:1", "cpu", "0", "-1").
+        device_env = os.getenv("SIMCOMPARE_NER_DEVICE", "").strip()
+        if device_env:
+            device = int(device_env) if device_env.lstrip("-").isdigit() else device_env
+        else:
+            import torch as _torch
+            device = 0 if _torch.cuda.is_available() else -1
         from transformers import pipeline
-        _transformers_pipelines[lang] = pipeline("ner", model=model_path, aggregation_strategy="simple")
+        _transformers_pipelines[lang] = pipeline("ner", model=model_path, aggregation_strategy="simple", device=device)
     except Exception:
         _transformers_pipelines[lang] = None
     return _transformers_pipelines[lang]

@@ -10,10 +10,13 @@ The result is a list of ``{start, end, text, type}`` dicts with non-overlapping
 spans (greedily resolved: earlier start wins, longer span wins,
 glossary > regex > jieba).
 """
+import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
+_logger = logging.getLogger("simcompare.ner")
 
 # jieba POS tags we treat as Chinese proper nouns -> entity type.
 _ZH_PROPER_POS = {
@@ -235,6 +238,7 @@ def _get_transformers_pipeline(lang: str):
         use_flag = os.getenv("SIMCOMPARE_NER_USE_TRANSFORMERS")
         enabled = (use_flag.strip().lower() in ("1", "true", "yes", "on")) if use_flag is not None else bool(ner_config().get("use_transformers"))
         if not enabled:
+            _logger.info("transformers NER disabled (use_transformers=false / no env) for lang=%r -> jieba+regex", lang)
             return None
         default_path = _TRANSFORMERS_MODEL_ZH if lang == "zh" else _TRANSFORMERS_MODEL_EN
         model_path = os.getenv("SIMCOMPARE_NER_MODEL_ZH" if lang == "zh" else "SIMCOMPARE_NER_MODEL_EN", default_path)
@@ -246,9 +250,12 @@ def _get_transformers_pipeline(lang: str):
         else:
             import torch as _torch
             device = 0 if _torch.cuda.is_available() else -1
+        _logger.info("transformers NER enabled: loading lang=%r model=%s device=%r", lang, model_path, device)
         from transformers import pipeline
         _transformers_pipelines[lang] = pipeline("ner", model=model_path, aggregation_strategy="simple", device=device)
-    except Exception:
+        _logger.info("transformers NER lang=%r model loaded OK", lang)
+    except Exception as exc:
+        _logger.warning("transformers NER lang=%r FAILED (%s: %s) -> falling back to jieba+regex", lang, type(exc).__name__, exc)
         _transformers_pipelines[lang] = None
     return _transformers_pipelines[lang]
 
@@ -271,8 +278,8 @@ def _transformers_spans(text: str, lang: str) -> List[Tuple[int, int, str, str]]
             group = str(ent.get("entity_group", ""))
             etype = label_map.get(group) or label_map.get(group.upper()) or label_map.get(group.lower()) or "term"
             spans.append((start, end, text[start:end], etype))
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("transformers NER inference failed lang=%r (%s: %s); skipping", lang, type(exc).__name__, exc)
     return spans
 
 

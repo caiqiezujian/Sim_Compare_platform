@@ -10,7 +10,6 @@ The result is a list of ``{start, end, text, type}`` dicts with non-overlapping
 spans (greedily resolved: earlier start wins, longer span wins,
 glossary > regex > jieba).
 """
-import json
 import os
 import re
 from pathlib import Path
@@ -208,53 +207,23 @@ _TRANSFORMERS_LABEL_MAP_EN = {
 }
 _transformers_pipelines: Dict[str, Any] = {}
 _transformers_tried: Dict[str, bool] = {}
-_local_model_cache: Dict[str, str] = {}
-_local_model_scanned = False
 
-
-def _find_local_models(model_dir: str) -> Dict[str, str]:
-    """Scan ``model_dir`` for model subdirs (each containing config.json) and
-    detect zh/en by the label scheme.  Returns ``{lang: path}``.
-
-      - CLUENER labels (B-name / B-address / B-organization ...) -> zh
-      - CoNLL-03 labels (B-PER / B-ORG / B-LOC / B-MISC)          -> en
-    """
-    result: Dict[str, str] = {}
-    if not model_dir:
-        return result
-    base = Path(model_dir).expanduser()
-    if not base.is_dir():
-        return result
-    for child in sorted(base.iterdir()):
-        cfg_path = child / "config.json"
-        if not cfg_path.is_file():
-            continue
-        try:
-            with cfg_path.open(encoding="utf-8") as reader:
-                cfg = json.load(reader)
-        except Exception:
-            continue
-        labels = " ".join(str(v) for v in (cfg.get("id2label") or {}).values())
-        if "B-name" in labels or "B-address" in labels or "B-organization" in labels:
-            result["zh"] = str(child)
-        elif "B-PER" in labels or "B-ORG" in labels or "B-LOC" in labels:
-            result["en"] = str(child)
-    return result
+# Fixed local model dirs (models are pre-downloaded here, always present).
+# Override per-run with env SIMCOMPARE_NER_MODEL_ZH / SIMCOMPARE_NER_MODEL_EN.
+_TRANSFORMERS_MODEL_ZH = "/data/yb/model/roberta-base-finetuned-cluener2020-chinese"
+_TRANSFORMERS_MODEL_EN = "/data/yb/model/distilbert-base-uncased-finetuned-conll03-english"
 
 
 def _get_transformers_pipeline(lang: str):
     """Lazy-load the per-language transformers NER pipeline if
-    ``ner.use_transformers`` is enabled.  Returns ``None`` when disabled or
-    unavailable (caller falls back to jieba).  Model resolution order:
-      1) auto-detect a local model dir under ``ner.model_dir`` (default
-         /data/yb/model) by label scheme -- uses local files, no network;
-      2) explicit ``ner.transformers_model_zh`` / ``_en`` from config;
-      3) HuggingFace hub id (downloaded via the HF_ENDPOINT mirror).
+    ``ner.use_transformers`` is enabled (or env SIMCOMPARE_NER_USE_TRANSFORMERS=1).
+    Models load DIRECTLY from the two fixed local dirs under /data/yb/model --
+    no scanning, no network.  Returns ``None`` when disabled (caller falls back
+    to jieba).
 
-    WARNING: this loads a torch model in-process; if the env's numpy/torch
-    stack is binary-incompatible it can crash the interpreter -- only enable
-    after verifying the model loads via a standalone ``python -c`` first.
-    Default is off.
+    WARNING: loads a torch model in-process; an incompatible numpy/torch stack
+    can crash the interpreter.  Verify the model loads via a standalone python
+    first.  Default off.
     """
     if lang in _transformers_pipelines:
         return _transformers_pipelines[lang]
@@ -263,25 +232,14 @@ def _get_transformers_pipeline(lang: str):
     _transformers_tried[lang] = True
     try:
         from .config import ner_config
-        cfg = ner_config()
         use_flag = os.getenv("SIMCOMPARE_NER_USE_TRANSFORMERS")
-        enabled = (use_flag.strip().lower() in ("1", "true", "yes", "on")) if use_flag is not None else bool(cfg.get("use_transformers"))
+        enabled = (use_flag.strip().lower() in ("1", "true", "yes", "on")) if use_flag is not None else bool(ner_config().get("use_transformers"))
         if not enabled:
             return None
-        global _local_model_scanned
-        if not _local_model_scanned:
-            model_dir = os.getenv("SIMCOMPARE_NER_MODEL_DIR") or cfg.get("model_dir") or "/data/yb/model"
-            _local_model_cache.update(_find_local_models(model_dir))
-            _local_model_scanned = True
-        model_id = _local_model_cache.get(lang)
-        if not model_id:
-            model_id = cfg.get("transformers_model_zh") if lang == "zh" else cfg.get("transformers_model_en")
-        if not model_id:
-            model_id = ("uer/roberta-base-finetuned-cluener2020-chinese" if lang == "zh"
-                        else "elastic/distilbert-base-uncased-finetuned-conll03-english")
-        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+        default_path = _TRANSFORMERS_MODEL_ZH if lang == "zh" else _TRANSFORMERS_MODEL_EN
+        model_path = os.getenv("SIMCOMPARE_NER_MODEL_ZH" if lang == "zh" else "SIMCOMPARE_NER_MODEL_EN", default_path)
         from transformers import pipeline
-        _transformers_pipelines[lang] = pipeline("ner", model=model_id, aggregation_strategy="simple")
+        _transformers_pipelines[lang] = pipeline("ner", model=model_path, aggregation_strategy="simple")
     except Exception:
         _transformers_pipelines[lang] = None
     return _transformers_pipelines[lang]

@@ -1,21 +1,63 @@
-"""Entity extraction for ASR/MT text.
+"""Lightweight named-entity extraction for ASR/MT text.
 
-Combines regex patterns (alphanumeric tokens like A100/GPT-4, numbers with units
-like 12万/5.5%/12万美元, dates, URLs, English runs), a transformers NER model for
-proper nouns (Chinese CLUENER / English CoNLL-03, loaded from local dirs), and a
-team glossary.  Returns character-span annotations the frontend renders as
-``<mark>`` tokens.
+Combines improved regex patterns (alphanumeric tokens like A100/GPT-4, numbers
+with units like 12万/5.2%/12万美元, dates, URLs, English runs), jieba POS tagging
+for Chinese proper nouns (boosted by an optional bundled user dictionary under
+``server/data/dict/*.txt``), and a team glossary.  Returns character-span
+annotations the frontend renders as ``<mark>`` tokens.
 
 The result is a list of ``{start, end, text, type}`` dicts with non-overlapping
 spans (greedily resolved: earlier start wins, longer span wins,
-glossary > regex/model).
+glossary > regex > jieba).
 """
 import logging
-import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 _logger = logging.getLogger("simcompare.ner")
+
+# jieba POS tags we treat as Chinese proper nouns -> entity type.
+_ZH_PROPER_POS = {
+    "nr": "person",   # 人名
+    "ns": "place",    # 地名
+    "nt": "org",      # 机构团体
+    "nz": "term",     # 其它专有名词
+}
+
+_posseg = None
+_userdict_loaded = False
+
+
+def _load_user_dicts(jieba_module) -> None:
+    """Load every ``*.txt`` under server/data/dict/ as a jieba user dictionary.
+
+    Files use the jieba userdict format ``word freq tag`` (freq/tag optional).
+    Drop HanLP (Apache-2.0) name/place/org lists or a team term list here and
+    they are picked up on first use -- no code change needed.
+    """
+    dict_dir = Path(__file__).resolve().parent / "data" / "dict"
+    if not dict_dir.is_dir():
+        return
+    for dict_file in sorted(dict_dir.glob("*.txt")):
+        try:
+            jieba_module.load_userdict(str(dict_file))
+        except Exception:
+            pass
+
+
+def _get_posseg():
+    """Lazy-load jieba.posseg (and user dicts) so the module imports cleanly
+    even before jieba is installed."""
+    global _posseg, _userdict_loaded
+    if _posseg is None:
+        import jieba
+        import jieba.posseg  # type: ignore
+        _posseg = jieba.posseg
+        if not _userdict_loaded:
+            _load_user_dicts(jieba)
+            _userdict_loaded = True
+    return _posseg
 
 
 _URL_RE = re.compile(r"https?://[^\s，。、,]+|www\.[^\s，。、,]+")
@@ -54,8 +96,8 @@ _EN_STOPWORDS = {
     "what", "who", "whom", "whose", "why", "how", "which", "while", "during",
     "he", "she", "we", "us", "our", "you", "your", "said", "says",
 }
-# General stoplist applied to every candidate span (lower-cased).  Catches a
-# few common function words regex might over-tag; kept small to avoid false drops.
+# General stoplist applied to every candidate span (lower-cased).  Catches the
+# few common words jieba/regex might over-tag; kept small to avoid false drops.
 _STOPWORDS = _EN_STOPWORDS | {
     "我们", "你们", "他们", "她们", "它们", "大家", "别人", "自己", "什么", "怎么",
     "这样", "那样", "这里", "那里", "哪里", "这个", "那个", "这些", "那些", "时候",
@@ -110,6 +152,26 @@ def _en_proper_spans(text: str) -> List[Tuple[int, int, str, str]]:
     return spans
 
 
+def _jieba_spans(text: str) -> List[Tuple[int, int, str, str]]:
+    spans: List[Tuple[int, int, str, str]] = []
+    try:
+        posseg = _get_posseg()
+    except Exception:
+        return spans
+    offset = 0
+    for word, flag in posseg.cut(text):
+        start = text.find(word, offset)
+        if start == -1:
+            offset += len(word)
+            continue
+        end = start + len(word)
+        etype = _ZH_PROPER_POS.get(flag)
+        if etype and len(word) >= 2:
+            spans.append((start, end, word, etype))
+        offset = end
+    return spans
+
+
 def _glossary_spans(text: str, glossary: List[Dict[str, Any]]) -> List[Tuple[int, int, str, str]]:
     spans: List[Tuple[int, int, str, str]] = []
     if not glossary:
@@ -133,106 +195,15 @@ def _glossary_spans(text: str, glossary: List[Dict[str, Any]]) -> List[Tuple[int
     return spans
 
 
-# ---- Optional transformers NER backend (opt-in via config ner.use_transformers) ----
-# Dedicated per-language NER models -- lighter and more accurate than zero-shot
-# GLiNER for standard entity types.  Chinese: CLUENER2020 (10 types).  English:
-# CoNLL-03 PER/ORG/LOC/MISC, uncased so it tolerates unstable ASR casing.
-_TRANSFORMERS_LABEL_MAP_ZH = {
-    "name": "person", "company": "org", "government": "org", "organization": "org",
-    "address": "place", "scene": "place", "position": "term",
-    "book": "term", "movie": "term", "game": "term",
-}
-_TRANSFORMERS_LABEL_MAP_EN = {
-    "PER": "person", "ORG": "org", "LOC": "place", "MISC": "term",
-}
-_transformers_pipelines: Dict[str, Any] = {}
-_transformers_tried: Dict[str, bool] = {}
-
-# Fixed local model dirs (models are pre-downloaded here, always present).
-# Override per-run with env SIMCOMPARE_NER_MODEL_ZH / SIMCOMPARE_NER_MODEL_EN.
-_TRANSFORMERS_MODEL_ZH = "/data/yb/model/roberta-base-finetuned-cluener2020-chinese"
-_TRANSFORMERS_MODEL_EN = "/data/yb/model/distilbert-base-uncased-finetuned-conll03-english"
-
-
-def _get_transformers_pipeline(lang: str):
-    """Lazy-load the per-language transformers NER pipeline if
-    ``ner.use_transformers`` is enabled (or env SIMCOMPARE_NER_USE_TRANSFORMERS=1).
-    Models load DIRECTLY from the two fixed local dirs under /data/yb/model --
-    no scanning, no network.  Returns ``None`` when disabled (caller then has
-    regex + glossary only, no proper-noun detection).
-
-    WARNING: loads a torch model in-process; an incompatible numpy/torch stack
-    can crash the interpreter.  Verify the model loads via a standalone python
-    first.  Default off.
-    """
-    if lang in _transformers_pipelines:
-        return _transformers_pipelines[lang]
-    if _transformers_tried.get(lang):
-        return None
-    _transformers_tried[lang] = True
-    try:
-        from .config import ner_config
-        # Enabled by default.  Disable with env SIMCOMPARE_NER_USE_TRANSFORMERS=0
-        # or config ner.use_transformers=false.
-        use_flag = os.getenv("SIMCOMPARE_NER_USE_TRANSFORMERS")
-        if use_flag is not None:
-            enabled = use_flag.strip().lower() in ("1", "true", "yes", "on")
-        else:
-            enabled = bool(ner_config().get("use_transformers", True))
-        if not enabled:
-            _logger.info("transformers NER disabled for lang=%r -> regex+glossary only", lang)
-            return None
-        default_path = _TRANSFORMERS_MODEL_ZH if lang == "zh" else _TRANSFORMERS_MODEL_EN
-        model_path = os.getenv("SIMCOMPARE_NER_MODEL_ZH" if lang == "zh" else "SIMCOMPARE_NER_MODEL_EN", default_path)
-        # Device: default cuda:7 if a GPU is available, else CPU. Override with
-        # env SIMCOMPARE_NER_DEVICE (e.g. "cuda:0", "cuda:7", "cpu", "7", "-1").
-        device_env = os.getenv("SIMCOMPARE_NER_DEVICE", "").strip()
-        if device_env:
-            device = int(device_env) if device_env.lstrip("-").isdigit() else device_env
-        else:
-            import torch as _torch
-            device = 7 if _torch.cuda.is_available() else -1
-        _logger.info("transformers NER enabled: loading lang=%r model=%s device=%r", lang, model_path, device)
-        from transformers import pipeline
-        _transformers_pipelines[lang] = pipeline("ner", model=model_path, aggregation_strategy="simple", device=device)
-        _logger.info("transformers NER lang=%r model loaded OK", lang)
-    except Exception as exc:
-        _logger.warning("transformers NER lang=%r FAILED (%s: %s) -> regex+glossary only (no proper nouns)", lang, type(exc).__name__, exc)
-        _transformers_pipelines[lang] = None
-    return _transformers_pipelines[lang]
-
-
-def _transformers_spans(text: str, lang: str) -> List[Tuple[int, int, str, str]]:
-    spans: List[Tuple[int, int, str, str]] = []
-    pipe = _get_transformers_pipeline(lang)
-    if pipe is None:
-        return spans
-    label_map = _TRANSFORMERS_LABEL_MAP_ZH if lang == "zh" else _TRANSFORMERS_LABEL_MAP_EN
-    try:
-        from .config import ner_config
-        threshold = float(ner_config().get("transformers_threshold") or 0.5)
-        for ent in pipe(text):
-            if float(ent.get("score", 0)) < threshold:
-                continue
-            start, end = int(ent.get("start", 0)), int(ent.get("end", 0))
-            if end <= start:
-                continue
-            group = str(ent.get("entity_group", ""))
-            etype = label_map.get(group) or label_map.get(group.upper()) or label_map.get(group.lower()) or "term"
-            spans.append((start, end, text[start:end], etype))
-    except Exception as exc:
-        _logger.warning("transformers NER inference failed lang=%r (%s: %s); skipping", lang, type(exc).__name__, exc)
-    return spans
-
-
 def extract_entities(text: str, lang: str, glossary: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Return non-overlapping entity spans for ``text``.
 
-    ``lang`` is the language of this text (``"zh"`` or ``"en"``).  Proper-noun
-    detection uses the transformers NER model (Chinese CLUENER / English
-    CoNLL-03) loaded from the local model dirs; regex (numbers/dates/URLs/English
-    runs/alphanumeric tokens) and the team glossary always apply.  ``glossary``
-    is an optional list of ``{"term": ..., "type": ...}`` dicts.
+    ``lang`` is the language of this text (``"zh"`` or ``"en"``); Chinese text
+    gets jieba POS tagging (boosted by the bundled user dictionary under
+    ``server/data/dict/*.txt``) in addition to regex.  ``glossary`` is an
+    optional list of ``{"term": ..., "type": ...}`` dicts from the team config.
+
+    Priority: glossary > regex > jieba.
     """
     if not text:
         return []
@@ -240,7 +211,8 @@ def extract_entities(text: str, lang: str, glossary: List[Dict[str, Any]] = None
     # (start, end, text, type, priority) -- higher priority wins ties.
     spans: List[Tuple[int, int, str, str, int]] = []
     spans.extend((s[0], s[1], s[2], s[3], 2) for s in _regex_spans(text, lang))
-    spans.extend((s[0], s[1], s[2], s[3], 2) for s in _transformers_spans(text, lang))
+    if lang == "zh":
+        spans.extend((s[0], s[1], s[2], s[3], 1) for s in _jieba_spans(text))
     spans.extend((s[0], s[1], s[2], s[3], 3) for s in _glossary_spans(text, glossary or []))
     # Drop obvious non-entities (function words etc.) to sharpen precision.
     spans = [s for s in spans if s[2].lower() not in _STOPWORDS]

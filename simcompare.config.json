@@ -21,9 +21,5 @@
     "debug_context_before": 24,
     "debug_context_after": 8
   },
-  "glossary": [],
-  "ner": {
-    "use_transformers": true,
-    "transformers_threshold": 0.5
-  }
+  "glossary": []
 }

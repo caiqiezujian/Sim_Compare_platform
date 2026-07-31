@@ -841,14 +841,12 @@ function App() {
           ]
           return groups.map(group => {
             const expanded = expandedGroups[group.key]
-            const inA = group.list.some(s => slotA === s.id)
-            const inB = group.list.some(s => slotB === s.id)
             return (
               <div className={`service-folder ${expanded ? 'expanded' : ''}`} key={group.key}>
                 <button className="service-folder-head" onClick={() => setExpandedGroups(g => ({ ...g, [group.key]: !g[group.key] }))}>
                   <span className="service-folder-title">
                     <strong>{group.title}</strong>
-                    <small>{group.list.length} 个服务{inA || inB ? ` · A${inA ? '✓' : ''} B${inB ? '✓' : ''}` : ''}</small>
+                    <small>{group.list.length}</small>
                   </span>
                   <ChevronDown size={15} className={`service-folder-chevron ${expanded ? 'up' : ''}`} />
                 </button>

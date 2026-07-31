@@ -134,6 +134,7 @@ function App() {
   const [showSystemModal, setShowSystemModal] = useState(false)
   const [newServiceType, setNewServiceType] = useState('grpc')
   const [newServiceGroup, setNewServiceGroup] = useState(null)
+  const [expandedGroups, setExpandedGroups] = useState({ grpc: true, api: true })
   const [editingService, setEditingService] = useState(null)
   const [editingType, setEditingType] = useState('grpc')
   const [toast, setToast] = useState('')
@@ -833,57 +834,64 @@ function App() {
         <button className="nav-item active"><Gauge size={17} /> 质量评估</button>
         </>)}
         <div className="side-label service-label">SERVICES</div>
-        {systems.map((system, index) => {
-          const isSlot = system.id === 'system-a' || system.id === 'system-b'
-          const inSlotA = slotA === system.id
-          const inSlotB = slotB === system.id
-          return (
-            <div
-              key={system.id}
-              role="button"
-              tabIndex={0}
-              className={`service-item ${selectedSystem === system.id ? 'selected' : ''} ${inSlotA ? 'in-slot-a' : ''} ${inSlotB ? 'in-slot-b' : ''}`}
-              onClick={() => setSelectedSystem(system.id)}
-              onDoubleClick={() => openEditService(system)}
-              title="单击选中 · 双击编辑"
-            >
-              <span className={`service-dot ${system.color}`} />
-              <span className="service-copy">
-                <strong>{system.label}{system.type && system.type !== 'grpc' ? <span className="service-type-tag">{SERVICE_TYPE_LABEL[system.type] || system.type}</span> : null}</strong>
-                <small>{serviceDisplay(system)}</small>
-              </span>
-              <div className="slot-chips">
-                <button
-                  className={`slot-chip ${inSlotA ? 'active cyan' : ''}`}
-                  title={inSlotA ? '取消 A 槽位' : '分配到 A 槽位'}
-                  onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'A') }}
-                >A</button>
-                <button
-                  className={`slot-chip ${inSlotB ? 'active violet' : ''}`}
-                  title={inSlotB ? '取消 B 槽位' : '分配到 B 槽位'}
-                  onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'B') }}
-                >B</button>
-              </div>
-              <div className="service-actions">
-                <button
-                  className="service-icon-btn"
-                  title="编辑"
-                  onClick={event => { event.stopPropagation(); openEditService(system) }}
-                >
-                  <Pencil size={12} />
+        {(() => {
+          const groups = [
+            { key: 'grpc', title: '我们的系统', list: systems.filter(s => (s.type || 'grpc') === 'grpc') },
+            { key: 'api', title: '外部模型', list: systems.filter(s => (s.type || 'grpc') !== 'grpc') },
+          ]
+          return groups.map(group => {
+            const expanded = expandedGroups[group.key]
+            const inA = group.list.some(s => slotA === s.id)
+            const inB = group.list.some(s => slotB === s.id)
+            return (
+              <div className={`service-folder ${expanded ? 'expanded' : ''}`} key={group.key}>
+                <button className="service-folder-head" onClick={() => setExpandedGroups(g => ({ ...g, [group.key]: !g[group.key] }))}>
+                  <span className="service-folder-title">
+                    <strong>{group.title}</strong>
+                    <small>{group.list.length} 个服务{inA || inB ? ` · A${inA ? '✓' : ''} B${inB ? '✓' : ''}` : ''}</small>
+                  </span>
+                  <ChevronDown size={15} className={`service-folder-chevron ${expanded ? 'up' : ''}`} />
                 </button>
-                <button
-                  className={`service-icon-btn danger ${isSlot ? 'placeholder' : ''}`}
-                  title={isSlot ? '系统服务不可删除' : '删除'}
-                  disabled={isSlot}
-                  onClick={event => { if (!isSlot) { event.stopPropagation(); deleteCustomService(system) } }}
-                >
-                  <X size={12} />
-                </button>
+                {expanded && (
+                  <div className="service-folder-body">
+                    {group.list.length === 0 && <div className="service-folder-empty">暂无服务</div>}
+                    {group.list.map(system => {
+                      const isSlot = system.id === 'system-a' || system.id === 'system-b'
+                      const inSlotA = slotA === system.id
+                      const inSlotB = slotB === system.id
+                      return (
+                        <div
+                          key={system.id}
+                          role="button"
+                          tabIndex={0}
+                          className={`service-item ${selectedSystem === system.id ? 'selected' : ''} ${inSlotA ? 'in-slot-a' : ''} ${inSlotB ? 'in-slot-b' : ''}`}
+                          onClick={() => setSelectedSystem(system.id)}
+                          onDoubleClick={() => openEditService(system)}
+                          title="单击选中 · 双击编辑"
+                        >
+                          <span className={`service-dot ${system.color}`} />
+                          <span className="service-copy">
+                            <strong>{system.label}{system.type && system.type !== 'grpc' ? <span className="service-type-tag">{SERVICE_TYPE_LABEL[system.type] || system.type}</span> : null}</strong>
+                            <small>{serviceDisplay(system)}</small>
+                          </span>
+                          <div className="slot-chips">
+                            <button className={`slot-chip ${inSlotA ? 'active cyan' : ''}`} title={inSlotA ? '取消 A 槽位' : '分配到 A 槽位'} onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'A') }}>A</button>
+                            <button className={`slot-chip ${inSlotB ? 'active violet' : ''}`} title={inSlotB ? '取消 B 槽位' : '分配到 B 槽位'} onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'B') }}>B</button>
+                          </div>
+                          <div className="service-actions">
+                            <button className="service-icon-btn" title="编辑" onClick={event => { event.stopPropagation(); openEditService(system) }}><Pencil size={12} /></button>
+                            <button className={`service-icon-btn danger ${isSlot ? 'placeholder' : ''}`} title={isSlot ? '系统服务不可删除' : '删除'} disabled={isSlot} onClick={event => { if (!isSlot) { event.stopPropagation(); deleteCustomService(system) } }}><X size={12} /></button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <button className="service-folder-add" onClick={() => { setShowSystemModal(true); setNewServiceGroup(group.key); setNewServiceType(group.key === 'grpc' ? 'grpc' : 'doubao') }}><Plus size={13} /> 添加{group.title}</button>
+                  </div>
+                )}
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        })()}
         <button className="add-service" onClick={() => { setShowSystemModal(true); setNewServiceGroup(null); setNewServiceType('grpc') }}><Plus size={15} /> 添加服务</button>
         <div className="sidebar-foot"><span>v0.1.0</span><span>API <span className="api-dot" /></span></div>
       </aside>

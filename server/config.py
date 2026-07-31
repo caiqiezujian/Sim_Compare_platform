@@ -64,16 +64,6 @@ def storage_config() -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def glossary_config() -> list:
-    value = CONFIG.get("glossary")
-    return value if isinstance(value, list) else []
-
-
-def ner_config() -> Dict[str, Any]:
-    value = CONFIG.get("ner")
-    return value if isinstance(value, dict) else {}
-
-
 def reload_config() -> Dict[str, Any]:
     """Re-read the config file from disk into the in-memory ``CONFIG`` dict."""
     fresh = _load_config()

@@ -1147,24 +1147,6 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 }
 .result-text.mt-text { color: var(--text-2); font-size: 12.5px; font-style: italic; }
 
-/* ============ 实体高亮 ============ */
-.entity {
-  padding: 0 2px;
-  margin: 0 1px;
-  border-radius: 3px;
-  font-weight: 600;
-  font-style: normal;
-  background: var(--panel-3);
-  color: var(--text);
-}
-.entity.type-number { background: rgba(0, 145, 255, .14); color: #0a7ab8; }
-.entity.type-date { background: rgba(224, 164, 85, .16); color: #b06a00; }
-.entity.type-person { background: rgba(91, 63, 192, .14); color: #5b3fc0; }
-.entity.type-place { background: rgba(34, 154, 90, .14); color: #1f8a52; }
-.entity.type-org { background: rgba(38, 110, 196, .14); color: #1f6db8; }
-.entity.type-term { background: rgba(214, 51, 132, .14); color: #c0337e; }
-.entity.type-eng { background: rgba(120, 130, 145, .16); color: #5a6473; }
-.entity.type-url { background: rgba(0, 130, 120, .14); color: #007a70; text-decoration: underline; text-underline-offset: 2px; }
 .bundle-lines {
   display: grid;
   gap: 6px;

@@ -496,7 +496,7 @@ def _coerce_service_entry(raw: Any, side: str = None) -> Dict[str, Any]:
         raise ValueError("service entry must be an object")
     label = str(raw.get("label") or "").strip()
     stype = str(raw.get("type") or "grpc").strip().lower()
-    if stype not in ("grpc", "doubao", "qwen"):
+    if stype not in ("grpc", "doubao", "qwen", "openai", "gemini"):
         stype = "grpc"
     grpc_url = str(raw.get("grpc_url") or raw.get("url") or "").strip()
     debug_log = str(raw.get("debug_log") or raw.get("debugLog") or "").strip()

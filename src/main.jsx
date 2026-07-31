@@ -133,6 +133,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [showSystemModal, setShowSystemModal] = useState(false)
   const [newServiceType, setNewServiceType] = useState('grpc')
+  const [newServiceGroup, setNewServiceGroup] = useState(null)
   const [openServiceGroup, setOpenServiceGroup] = useState(null)
   const [openCardSlot, setOpenCardSlot] = useState(null)
   const [editingService, setEditingService] = useState(null)
@@ -452,6 +453,7 @@ function App() {
     setSelectedSystem(next.id)
     setShowSystemModal(false)
     setNewServiceType('grpc')
+    setNewServiceGroup(null)
     notify(type === 'grpc' ? 'gRPC 服务已加入对比' : `${SERVICE_TYPE_LABEL[type] || type} 服务已加入对比`)
   }
 
@@ -881,7 +883,7 @@ function App() {
                         </div>
                       )
                     })}
-                    <button className="service-dropdown-add" onClick={event => { event.stopPropagation(); setShowSystemModal(true); setNewServiceType(slot === 'A' ? 'grpc' : 'doubao') }}><Plus size={13} /> 添加{title}</button>
+                    <button className="service-dropdown-add" onClick={event => { event.stopPropagation(); setShowSystemModal(true); setNewServiceGroup(slot === 'A' ? 'grpc' : 'api'); setNewServiceType(slot === 'A' ? 'grpc' : 'doubao') }}><Plus size={13} /> 添加{title}</button>
                   </div>
                 )}
               </div>
@@ -894,7 +896,7 @@ function App() {
             </div>
           )
         })()}
-        <button className="add-service" onClick={() => setShowSystemModal(true)}><Plus size={15} /> 添加服务</button>
+        <button className="add-service" onClick={() => { setShowSystemModal(true); setNewServiceGroup(null); setNewServiceType('grpc') }}><Plus size={15} /> 添加服务</button>
         <div className="sidebar-foot"><span>v0.1.0</span><span>API <span className="api-dot" /></span></div>
       </aside>
 
@@ -973,7 +975,7 @@ function App() {
         </div>
       )}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
-      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label><label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
+      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>{newServiceGroup === 'grpc' ? '添加 gRPC 服务' : newServiceGroup === 'api' ? '添加外部模型' : '添加服务'}</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label>{newServiceGroup === null && <label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>}{newServiceGroup === 'api' && <div className="modal-pill-group"><span className="modal-pill-label">模型类型</span><button type="button" className={`modal-pill ${newServiceType === 'doubao' ? 'active' : ''}`} onClick={() => setNewServiceType('doubao')}>豆包 Doubao</button><button type="button" className={`modal-pill ${newServiceType === 'qwen' ? 'active' : ''}`} onClick={() => setNewServiceType('qwen')}>通义千问 Qwen</button></div>}{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
       {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑服务{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label><label>服务类型<select name="type" value={editingType} onChange={event => setEditingType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '已配置，留空保持不变' : 'sk-...'} autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
     </div>
   )

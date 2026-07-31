@@ -1557,6 +1557,19 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   line-height: 1.5;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 14px; }
+.modal-pill-group { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.modal-pill-label { font: 600 11px Inter, system-ui, sans-serif; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; flex: 0 0 auto; }
+.modal-pill {
+  padding: 5px 14px;
+  font: 500 12px Inter, system-ui, sans-serif;
+  color: var(--text-2);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: all .12s ease;
+}
+.modal-pill:hover { border-color: var(--border-strong); color: var(--text); }
+.modal-pill.active { color: #fff; background: var(--violet); border-color: var(--violet); }
 .modal-advanced {
   margin-top: 12px;
   border-top: 1px dashed var(--border);

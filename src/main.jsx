@@ -18,9 +18,24 @@ const TIMELINE_ROW_GAP = 14
 const TIMELINE_ROW_BASE_HEIGHT = 132
 
 const initialSystems = [
-  { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.71:16552', language: 'zh → en', color: 'cyan', enabled: true },
-  { id: 'system-b', label: '候选实验版', name: 'S2TT · Canary', url: '', language: 'zh → en', color: 'violet', enabled: true },
+  { id: 'system-a', label: '线上稳定版', name: 'S2TT · Stable', url: '10.185.1.71:16552', type: 'grpc', language: 'zh → en', color: 'cyan', enabled: true },
+  { id: 'system-b', label: '候选实验版', name: 'S2TT · Canary', url: '', type: 'grpc', language: 'zh → en', color: 'violet', enabled: true },
 ]
+
+const maskKey = (key) => {
+  if (!key) return ''
+  if (key.length <= 8) return '****'
+  return key.slice(0, 3) + '****' + key.slice(-4)
+}
+
+const SERVICE_TYPE_LABEL = { grpc: 'gRPC', doubao: '豆包', qwen: 'Qwen' }
+
+const serviceDisplay = (system) => {
+  if (!system) return '未配置'
+  const t = system.type || 'grpc'
+  if (t === 'grpc') return system.url || '未配置'
+  return (system.api_key || system.has_api_key) ? (maskKey(system.api_key) || 'Key 已配置') : '未配置 Key'
+}
 
 const demoItems = [
   { id: 'chunk-01', start: 0, end: 3280, status: 'done', asr: '各位观众大家好，欢迎来到今天的节目。', mt: 'Hello everyone, welcome to today’s program.', audio: 'chunk-01.wav', logs: ['request opened · sid=Beijing-TSC-test-7812', 'audio stream 0.0s — 3.28s', 'ASR final · hold_n=1', 'MT final · latency 842ms'] },
@@ -117,7 +132,9 @@ function App() {
   const [selectedSide, setSelectedSide] = useState('left')
   const [query, setQuery] = useState('')
   const [showSystemModal, setShowSystemModal] = useState(false)
+  const [newServiceType, setNewServiceType] = useState('grpc')
   const [editingService, setEditingService] = useState(null)
+  const [editingType, setEditingType] = useState('grpc')
   const [toast, setToast] = useState('')
   const [serverState, setServerState] = useState('offline')
   const [serverRunId, setServerRunId] = useState(null)
@@ -177,6 +194,8 @@ function App() {
             ...item,
             label: service.label || item.label,
             url: service.grpc_url || item.url,
+            type: service.type || 'grpc',
+            has_api_key: service.has_api_key || false,
           }
         }))
       })
@@ -417,16 +436,21 @@ function App() {
   const addSystem = (event) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const url = String(form.get('url') || '').trim()
     const label = String(form.get('label') || '').trim() || '自定义服务'
-    const debug_log = String(form.get('debug_log') || '').trim()
-    const debug_root = String(form.get('debug_root') || '').trim()
-    if (!url) return
-    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, language: 'zh → en', color: 'amber', enabled: true, debug_log, debug_root }
+    const type = newServiceType
+    const url = type === 'grpc' ? String(form.get('url') || '').trim() : ''
+    const api_key = type !== 'grpc' ? String(form.get('api_key') || '').trim() : ''
+    const debug_log = type === 'grpc' ? String(form.get('debug_log') || '').trim() : ''
+    const debug_root = type === 'grpc' ? String(form.get('debug_root') || '').trim() : ''
+    if (type === 'grpc' && !url) return
+    if (type !== 'grpc' && !api_key) return
+    const palette = ['amber', 'green', 'pink', 'teal']
+    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, type, api_key, has_api_key: !!api_key, language: 'zh → en', color: palette[systems.length % palette.length], enabled: true, debug_log, debug_root }
     setSystems(items => [...items, next])
     setSelectedSystem(next.id)
     setShowSystemModal(false)
-    notify('服务地址已加入对比')
+    setNewServiceType('grpc')
+    notify(type === 'grpc' ? 'gRPC 服务已加入对比' : `${SERVICE_TYPE_LABEL[type] || type} 服务已加入对比`)
   }
 
   const updateSystemUrl = (id, url) => {
@@ -442,13 +466,17 @@ function App() {
       services: {
         left: {
           label: leftEntry.label || '',
+          type: leftEntry.type || 'grpc',
           grpc_url: leftEntry.url || '',
+          api_key: leftEntry.api_key || '',
           debug_log: leftEntry.debug_log || '',
           debug_root: leftEntry.debug_root || '',
         },
         right: {
           label: rightEntry.label || '',
+          type: rightEntry.type || 'grpc',
           grpc_url: rightEntry.url || '',
+          api_key: rightEntry.api_key || '',
           debug_log: rightEntry.debug_log || '',
           debug_root: rightEntry.debug_root || '',
         },
@@ -466,16 +494,19 @@ function App() {
   }
 
   const openEditService = (system) => {
-    // Snapshot the current slot so the modal can populate even for system-a/b
-    // whose UI metadata (id, name, color, language) is purely client-side.
     const isSlot = system.id === 'system-a' || system.id === 'system-b'
     const side = system.id === 'system-a' ? 'left' : system.id === 'system-b' ? 'right' : null
+    const stype = system.type || 'grpc'
+    setEditingType(stype)
     setEditingService({
       system,
       isSlot,
       side,
       label: system.label || '',
+      type: stype,
       url: system.url || '',
+      api_key: '',
+      has_api_key: system.has_api_key || !!system.api_key,
       debug_log: system.debug_log || '',
       debug_root: system.debug_root || '',
     })
@@ -486,29 +517,29 @@ function App() {
     if (!editingService) return
     const form = new FormData(event.currentTarget)
     const label = String(form.get('label') || '').trim() || '自定义服务'
-    const url = String(form.get('url') || '').trim()
-    const debug_log = String(form.get('debug_log') || '').trim()
-    const debug_root = String(form.get('debug_root') || '').trim()
+    const type = String(form.get('type') || 'grpc')
+    const url = type === 'grpc' ? String(form.get('url') || '').trim() : ''
+    const api_key = type !== 'grpc' ? String(form.get('api_key') || '').trim() : ''
+    const debug_log = type === 'grpc' ? String(form.get('debug_log') || '').trim() : ''
+    const debug_root = type === 'grpc' ? String(form.get('debug_root') || '').trim() : ''
     const { system, isSlot, side } = editingService
 
-    // Build the next systems array optimistically so the UI updates immediately.
-    const updated = { label, url, debug_log, debug_root }
+    const updated = { label, type, url, api_key, has_api_key: api_key ? true : editingService.has_api_key, debug_log, debug_root }
     let snapshot = null
     setSystems(items => {
       snapshot = items
-      return items.map(item => item.id === system.id ? { ...item, ...updated } : item)
+      return items.map(item => item.id === system.id ? { ...item, ...updated, api_key: api_key || item.api_key } : item)
     })
 
     if (isSlot) {
-      // Persist to backend by merging against the other slot.
       const other = side === 'left' ? systems[1] : systems[0]
       try {
-        const leftEntry = side === 'left' ? updated : { label: other?.label || '', url: other?.url || '', debug_log: other?.debug_log || '', debug_root: other?.debug_root || '' }
-        const rightEntry = side === 'right' ? updated : { label: other?.label || '', url: other?.url || '', debug_log: other?.debug_log || '', debug_root: other?.debug_root || '' }
+        const otherEntry = { label: other?.label || '', type: other?.type || 'grpc', url: other?.url || '', api_key: '', debug_log: other?.debug_log || '', debug_root: other?.debug_root || '' }
+        const leftEntry = side === 'left' ? updated : otherEntry
+        const rightEntry = side === 'right' ? updated : otherEntry
         await persistSlots(leftEntry, rightEntry)
         notify('服务配置已保存到 config')
       } catch (err) {
-        // Roll back optimistic update.
         if (snapshot) setSystems(snapshot)
         notify(`保存失败：${err.message || err}`)
       }
@@ -599,9 +630,11 @@ function App() {
     try {
       const leftSystem = slotService('A')
       const rightSystem = slotService('B')
-      const enabled = [leftSystem, rightSystem].filter(system => system && system.enabled && system.url.trim())
+      const enabled = [leftSystem, rightSystem].filter(system => system && system.enabled && (
+        (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
+      ))
       if (!enabled.length) {
-        notify('请至少填写一个 gRPC 服务地址')
+        notify('请至少配置一个服务（gRPC 地址或 API Key）')
         if (mediaRef.current) {
           mediaRef.current.pause()
           mediaRef.current.currentTime = 0
@@ -814,8 +847,8 @@ function App() {
             >
               <span className={`service-dot ${system.color}`} />
               <span className="service-copy">
-                <strong>{system.label}</strong>
-                <small>{system.url || '未配置'}</small>
+                <strong>{system.label}{system.type && system.type !== 'grpc' ? <span className="service-type-tag">{SERVICE_TYPE_LABEL[system.type] || system.type}</span> : null}</strong>
+                <small>{(system.type && system.type !== 'grpc') ? ((system.api_key || system.has_api_key) ? (maskKey(system.api_key) || 'API Key 已配置') : '未配置 Key') : (system.url || '未配置')}</small>
               </span>
               <div className="slot-chips">
                 <button
@@ -849,7 +882,7 @@ function App() {
             </div>
           )
         })}
-        <button className="add-service" onClick={() => setShowSystemModal(true)}><Plus size={15} /> 添加服务地址</button>
+        <button className="add-service" onClick={() => setShowSystemModal(true)}><Plus size={15} /> 添加服务</button>
         <div className="sidebar-foot"><span>v0.1.0</span><span>API <span className="api-dot" /></span></div>
       </aside>
 
@@ -859,10 +892,10 @@ function App() {
 
         <section className="control-grid">
           <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频（MP4/MOV 等），后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
-          <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>直接输入两个 gRPC 地址，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-input"><span>{system.label}</span><input value={system.url} onChange={event => updateSystemUrl(system.id, event.target.value)} onFocus={() => setSelectedSystem(system.id)} placeholder="127.0.0.1:7860" spellCheck="false" /></label><button className="copy-button" title="复制地址" onClick={() => copyValue(system.url)}><Copy size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加备用地址</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
+          <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务（gRPC 或 API 型）进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const stype = system.type || 'grpc'; const meta = stype === 'grpc' ? (system.url || '未配置') : ((system.api_key || system.has_api_key) ? `Key: ${maskKey(system.api_key) || '已配置'}` : '未配置 Key'); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-select"><select value={slot === 'A' ? slotA : slotB} onChange={event => assignToSlot(event.target.value, slot)}>{systems.map(s => <option key={s.id} value={s.id}>{s.label}{s.type && s.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[s.type] || s.type}` : ''}</option>)}</select></label><span className="endpoint-meta" title={meta}>{meta}</span><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加服务</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
         </section>
 
-        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{slotService('A')?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{slotService('B')?.url || '未配置'}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
+        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{serviceDisplay(slotService('A'))}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{serviceDisplay(slotService('B'))}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={index}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : (log && log.label ? <>{log.label}: {log.text}</> : JSON.stringify(log))}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
         </>)}
@@ -920,7 +953,7 @@ function App() {
                 <button className="small-tool icon-only" title="关闭全屏" onClick={() => setTimelineFullscreen(false)}><X size={16} /></button>
               </div>
             </div>
-            <div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{slotService('A')?.url || '未配置'}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{slotService('B')?.url || '未配置'}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div>
+            <div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{serviceDisplay(slotService('A'))}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{serviceDisplay(slotService('B'))}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div>
             <div ref={fullscreenListRef} className="timeline-list absolute-timeline is-fullscreen" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>
             {timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}
             <div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div>
@@ -928,8 +961,8 @@ function App() {
         </div>
       )}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
-      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加 gRPC 服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：我的本地测试版" autoFocus /></label><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details><div className="modal-hint"><Info size={14} /> 支持 host:port 格式。后端会将此地址传入流式调用。</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加地址</button></div></form></div></div>}
-      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑服务{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details><div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
+      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>添加服务</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label><label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
+      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑服务{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label><label>服务类型<select name="type" value={editingType} onChange={event => setEditingType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '已配置，留空保持不变' : 'sk-...'} autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
     </div>
   )
 }

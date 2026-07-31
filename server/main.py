@@ -349,7 +349,15 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 if total > 0:
                     run["progress"] = min(95, max(1, round(sent / total * 95)))
 
-            def run_side(side: str, endpoint: str):
+            def run_side(side: str, endpoint: str, system: dict):
+                stype = (system.get("type") or "grpc").lower() if isinstance(system, dict) else "grpc"
+                if stype != "grpc":
+                    label = system.get("label") if isinstance(system, dict) else ""
+                    msg = f"{stype.upper()}（{label or 'API'}）为 API 型服务，尚未接入调用适配器，暂不支持运行对比"
+                    rows = error_chunk(side, stype, msg)
+                    update_side(side, rows)
+                    run[f"{side}_error"] = msg
+                    return rows
                 try:
                     return run_grpc(
                         video_path,
@@ -381,11 +389,13 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 run_side,
                 "left",
                 system_endpoint(systems[0]),
+                systems[0] if systems else {},
             )
             right_task = asyncio.to_thread(
                 run_side,
                 "right",
                 system_endpoint(systems[1]),
+                systems[1] if len(systems) > 1 else {},
             ) if len(systems) > 1 else None
             if right_task:
                 left, right = await asyncio.gather(left_task, right_task)
@@ -459,7 +469,9 @@ async def get_config():
         item = service_config(side)
         services[side] = {
             "label": item.get("label") or ("系统 A" if side == "left" else "系统 B"),
+            "type": item.get("type") or "grpc",
             "grpc_url": item.get("grpc_url") or item.get("url") or "",
+            "has_api_key": bool(item.get("api_key")),
             "debug_log_configured": bool(item.get("debug_log") or item.get("debugLog")),
             "debug_root_configured": bool(item.get("debug_root") or item.get("debugRoot")),
         }
@@ -479,16 +491,26 @@ async def get_config():
 _ALLOWED_CONFIG_KEYS = {"services", "runtime", "storage"}
 
 
-def _coerce_service_entry(raw: Any) -> Dict[str, Any]:
+def _coerce_service_entry(raw: Any, side: str = None) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError("service entry must be an object")
     label = str(raw.get("label") or "").strip()
+    stype = str(raw.get("type") or "grpc").strip().lower()
+    if stype not in ("grpc", "doubao", "qwen"):
+        stype = "grpc"
     grpc_url = str(raw.get("grpc_url") or raw.get("url") or "").strip()
     debug_log = str(raw.get("debug_log") or raw.get("debugLog") or "").strip()
     debug_root = str(raw.get("debug_root") or raw.get("debugRoot") or "").strip()
+    api_key = str(raw.get("api_key") or "").strip()
+    # Empty api_key on PUT means "keep existing" (GET never returns the plaintext,
+    # so the edit modal sends an empty field when the user does not retype it).
+    if not api_key and side:
+        api_key = service_config(side).get("api_key") or ""
     return {
         "label": label,
+        "type": stype,
         "grpc_url": grpc_url,
+        "api_key": api_key,
         "debug_log": debug_log,
         "debug_root": debug_root,
     }
@@ -499,7 +521,7 @@ def _coerce_services(raw: Any) -> Dict[str, Dict[str, Any]]:
         raise ValueError("services must be an object keyed by side")
     coerced: Dict[str, Dict[str, Any]] = {}
     for side in ("left", "right"):
-        coerced[side] = _coerce_service_entry(raw.get(side) or {})
+        coerced[side] = _coerce_service_entry(raw.get(side) or {}, side)
     return coerced
 
 

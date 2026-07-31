@@ -553,6 +553,50 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   color: var(--text);
   padding: 1px 0;
 }
+.endpoint-select {
+  display: flex; flex-direction: column; gap: 0;
+  flex: 1; min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel-2);
+  transition: all .12s ease;
+}
+.endpoint-select:focus-within { border-color: var(--cyan); background: #ffffff; box-shadow: 0 0 0 2px rgba(0, 112, 163, 0.12); }
+.endpoint-select span { color: var(--text-3); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.endpoint-select select {
+  width: 100%;
+  font: 500 12px Inter, system-ui, sans-serif;
+  color: var(--text);
+  padding: 1px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.endpoint-meta {
+  flex: 0 1 140px;
+  min-width: 0;
+  font: 500 11px 'DM Mono', monospace;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.service-type-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font: 600 9px 'DM Mono', monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  background: var(--panel-3);
+  color: var(--text-3);
+  vertical-align: middle;
+}
 .copy-button {
   width: 28px; height: 28px;
   display: grid; place-items: center;
@@ -1645,6 +1689,7 @@ html, body {
 
 .dropzone,
 .endpoint-input,
+.endpoint-select,
 .copy-button,
 .search-box,
 .time-chip,

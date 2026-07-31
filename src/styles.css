@@ -297,6 +297,40 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .service-dot.violet { background: var(--violet); }
 .service-dot.amber  { background: var(--amber); }
 
+.service-groups { display: flex; flex-direction: column; gap: 10px; padding: 0 2px; }
+.service-group { display: flex; flex-direction: column; gap: 4px; }
+.service-group-label {
+  font: 600 10px Inter, system-ui, sans-serif;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 0 2px;
+}
+.service-group-row { display: flex; align-items: center; gap: 4px; }
+.service-group-select {
+  flex: 1; min-width: 0;
+  padding: 6px 8px;
+  font: 500 12px Inter, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  outline: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.service-group-select:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0, 112, 163, 0.12); }
+.service-group-meta {
+  font: 500 10.5px 'DM Mono', monospace;
+  color: var(--text-3);
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.service-group .service-icon-btn { flex: 0 0 auto; }
+
 .add-service {
   display: flex; align-items: center; gap: 6px;
   width: calc(100% - 4px);

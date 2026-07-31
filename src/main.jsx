@@ -831,57 +831,32 @@ function App() {
         <button className="nav-item active"><Gauge size={17} /> 质量评估</button>
         </>)}
         <div className="side-label service-label">SERVICES</div>
-        {systems.map((system, index) => {
-          const isSlot = system.id === 'system-a' || system.id === 'system-b'
-          const inSlotA = slotA === system.id
-          const inSlotB = slotB === system.id
-          return (
-            <div
-              key={system.id}
-              role="button"
-              tabIndex={0}
-              className={`service-item ${selectedSystem === system.id ? 'selected' : ''} ${inSlotA ? 'in-slot-a' : ''} ${inSlotB ? 'in-slot-b' : ''}`}
-              onClick={() => setSelectedSystem(system.id)}
-              onDoubleClick={() => openEditService(system)}
-              title="单击选中 · 双击编辑"
-            >
-              <span className={`service-dot ${system.color}`} />
-              <span className="service-copy">
-                <strong>{system.label}{system.type && system.type !== 'grpc' ? <span className="service-type-tag">{SERVICE_TYPE_LABEL[system.type] || system.type}</span> : null}</strong>
-                <small>{(system.type && system.type !== 'grpc') ? ((system.api_key || system.has_api_key) ? (maskKey(system.api_key) || 'API Key 已配置') : '未配置 Key') : (system.url || '未配置')}</small>
-              </span>
-              <div className="slot-chips">
-                <button
-                  className={`slot-chip ${inSlotA ? 'active cyan' : ''}`}
-                  title={inSlotA ? '取消 A 槽位' : '分配到 A 槽位'}
-                  onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'A') }}
-                >A</button>
-                <button
-                  className={`slot-chip ${inSlotB ? 'active violet' : ''}`}
-                  title={inSlotB ? '取消 B 槽位' : '分配到 B 槽位'}
-                  onClick={event => { event.stopPropagation(); assignToSlot(system.id, 'B') }}
-                >B</button>
+        {(() => {
+          const grpcSystems = systems.filter(s => (s.type || 'grpc') === 'grpc')
+          const apiSystems = systems.filter(s => (s.type || 'grpc') !== 'grpc')
+          const grpcSelected = systems.find(s => s.id === slotA) || grpcSystems[0] || systems[0]
+          const apiSelected = systems.find(s => s.id === slotB) || apiSystems[0]
+          const renderGroup = (label, groupSystems, selected, slot, color) => (
+            <div className="service-group" key={label}>
+              <label className="service-group-label">{label}</label>
+              <div className="service-group-row">
+                <select className="service-group-select" value={selected?.id || ''} onChange={event => { const id = event.target.value; if (slot === 'A') setSlotA(id); else setSlotB(id) }}>
+                  {groupSystems.length === 0 && <option value="">未添加</option>}
+                  {groupSystems.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+                {selected && <button className="service-icon-btn" title="编辑" onClick={() => openEditService(selected)}><Pencil size={12} /></button>}
+                {selected && selected.id !== 'system-a' && selected.id !== 'system-b' && <button className="service-icon-btn danger" title="删除" onClick={() => deleteCustomService(selected)}><X size={12} /></button>}
               </div>
-              <div className="service-actions">
-                <button
-                  className="service-icon-btn"
-                  title="编辑"
-                  onClick={event => { event.stopPropagation(); openEditService(system) }}
-                >
-                  <Pencil size={12} />
-                </button>
-                <button
-                  className={`service-icon-btn danger ${isSlot ? 'placeholder' : ''}`}
-                  title={isSlot ? '系统服务不可删除' : '删除'}
-                  disabled={isSlot}
-                  onClick={event => { if (!isSlot) { event.stopPropagation(); deleteCustomService(system) } }}
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              <small className="service-group-meta">{serviceDisplay(selected)}</small>
             </div>
           )
-        })}
+          return (
+            <div className="service-groups">
+              {renderGroup('我们的系统', grpcSystems, grpcSelected, 'A', 'cyan')}
+              {renderGroup('外部模型', apiSystems, apiSelected, 'B', 'violet')}
+            </div>
+          )
+        })()}
         <button className="add-service" onClick={() => setShowSystemModal(true)}><Plus size={15} /> 添加服务</button>
         <div className="sidebar-foot"><span>v0.1.0</span><span>API <span className="api-dot" /></span></div>
       </aside>
@@ -892,7 +867,7 @@ function App() {
 
         <section className="control-grid">
           <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频（MP4/MOV 等），后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
-          <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务（gRPC 或 API 型）进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const stype = system.type || 'grpc'; const meta = stype === 'grpc' ? (system.url || '未配置') : ((system.api_key || system.has_api_key) ? `Key: ${maskKey(system.api_key) || '已配置'}` : '未配置 Key'); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-select"><select value={slot === 'A' ? slotA : slotB} onChange={event => assignToSlot(event.target.value, slot)}>{systems.map(s => <option key={s.id} value={s.id}>{s.label}{s.type && s.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[s.type] || s.type}` : ''}</option>)}</select></label><span className="endpoint-meta" title={meta}>{meta}</span><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加服务</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
+          <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务（gRPC 或 API 型）进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const isA = slot === 'A'; const pool = systems.filter(s => (s.type || 'grpc') === (isA ? 'grpc' : 'api') || (isA && s.id === 'system-a') || (!isA && s.id === 'system-b')); const system = isA ? (systems.find(s => s.id === slotA) || pool[0]) : (systems.find(s => s.id === slotB) || pool[0]); if (!system) return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${isA ? 'cyan' : 'violet'}`}>{slot}</span><span className="endpoint-meta">{isA ? '未配置 gRPC' : '未添加外部模型'}</span></div>; const meta = serviceDisplay(system); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${isA ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-select"><select value={system.id} onChange={event => { if (isA) setSlotA(event.target.value); else setSlotB(event.target.value) }}>{pool.map(s => <option key={s.id} value={s.id}>{s.label}{s.type && s.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[s.type] || s.type}` : ''}</option>)}</select></label><span className="endpoint-meta" title={meta}>{meta}</span><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加服务</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
         </section>
 
         <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{serviceDisplay(slotService('A'))}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{serviceDisplay(slotService('B'))}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>

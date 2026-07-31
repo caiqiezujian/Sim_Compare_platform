@@ -57,10 +57,10 @@ def demo_chunks():
 
 def error_chunk(side: str, endpoint: str, message: str):
     return [{
-        "id": f"{side}-grpc-error",
+        "id": f"{side}-error",
         "start": 0,
         "end": 0,
-        "asr": f"{side.upper()} gRPC 连接失败",
+        "asr": f"{side.upper()} 服务调用失败",
         "mt": message,
         "status": "failed",
         "audio": "",
@@ -472,8 +472,8 @@ async def get_config():
             "type": item.get("type") or "grpc",
             "grpc_url": item.get("grpc_url") or item.get("url") or "",
             "has_api_key": bool(item.get("api_key")),
-            "debug_log_configured": bool(item.get("debug_log") or item.get("debugLog")),
-            "debug_root_configured": bool(item.get("debug_root") or item.get("debugRoot")),
+            "debug_log": item.get("debug_log") or item.get("debugLog") or "",
+            "debug_root": item.get("debug_root") or item.get("debugRoot") or "",
         }
     return {
         "config_loaded": config_loaded(),

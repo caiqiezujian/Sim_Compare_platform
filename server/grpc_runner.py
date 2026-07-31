@@ -174,7 +174,6 @@ def run_grpc(
 
     pcm, duration = _audio_samples(audio_file)
     deadline = timeout or max(60, int(duration * 2.5 + 30))
-    mt_lang = "en" if lang == "zh" else "zh"
     chunks = {}
     started = time.monotonic()
     channel_options = (("grpc.enable_http_proxy", 0),)

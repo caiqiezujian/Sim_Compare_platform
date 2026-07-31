@@ -1,18 +1,17 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  AudioLines, Check, ChevronDown, CircleHelp, Clock3, Copy, FileAudio,
-  FolderOpen, Gauge, GitCompareArrows, Headphones, History, Info, Languages,
-  Link2, ListFilter, LoaderCircle, Logs, Maximize2, Menu, Minus, Pause, Pencil, Play, Plus,
-  RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, TerminalSquare,
-  UploadCloud, Volume2, VolumeX, X, Zap
+  AudioLines, Check, ChevronDown, CircleHelp, Clock3, FileAudio,
+  Gauge, GitCompareArrows, History, Info, Languages,
+  Link2, ListFilter, LoaderCircle, Logs, Maximize2, Pencil, Play, Plus,
+  RotateCcw, Search, Settings2, SlidersHorizontal, TerminalSquare,
+  UploadCloud, Volume2, VolumeX, X
 } from 'lucide-react'
 import './styles.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || (window.location.port === '5173' ? `${window.location.protocol}//${window.location.hostname}:8000` : window.location.origin)
 const TIMELINE_TOP_PADDING = 64
 const TIMELINE_BOTTOM_PADDING = 180
-const TIMELINE_PX_PER_SECOND = 84
 const TIMELINE_CARD_ANCHOR_Y = 58
 const TIMELINE_ROW_GAP = 14
 const TIMELINE_ROW_BASE_HEIGHT = 132
@@ -37,14 +36,6 @@ const serviceDisplay = (system) => {
   return (system.api_key || system.has_api_key) ? (maskKey(system.api_key) || 'Key 已配置') : '未配置 Key'
 }
 
-const demoItems = [
-  { id: 'chunk-01', start: 0, end: 3280, status: 'done', asr: '各位观众大家好，欢迎来到今天的节目。', mt: 'Hello everyone, welcome to today’s program.', audio: 'chunk-01.wav', logs: ['request opened · sid=Beijing-TSC-test-7812', 'audio stream 0.0s — 3.28s', 'ASR final · hold_n=1', 'MT final · latency 842ms'] },
-  { id: 'chunk-02', start: 3280, end: 5190, status: 'done', asr: '今天我们来聊一个有趣的话题。', mt: 'Today we are going to talk about an interesting topic.', audio: 'chunk-02.wav', logs: ['audio stream 3.28s — 5.19s', 'ASR final · hold_n=0', 'MT final · latency 906ms'] },
-  { id: 'chunk-03', start: 5190, end: 6450, status: 'done', asr: '应该是到了。', mt: 'I think we’ve reached it.', audio: 'chunk-03.wav', logs: ['audio stream 5.19s — 6.45s', 'ASR final · hold_n=1', 'MT final · latency 1,024ms', 'debug snapshot saved'] },
-  { id: 'chunk-04', start: 6450, end: 9360, status: 'done', asr: '从这里开始，两个系统的结果出现了差异。', mt: 'From here, the two systems begin to diverge.', audio: 'chunk-04.wav', logs: ['audio stream 6.45s — 9.36s', 'ASR final · hold_n=1', 'MT final · latency 1,188ms'] },
-  { id: 'chunk-05', start: 9360, end: 12120, status: 'done', asr: '我们可以逐句查看它们的表现。', mt: 'We can review their performance sentence by sentence.', audio: 'chunk-05.wav', logs: ['audio stream 9.36s — 12.12s', 'ASR final · hold_n=0', 'MT final · latency 997ms'] },
-  { id: 'chunk-06', start: 12120, end: 14600, status: 'pending', asr: '这条结果正在等待服务返回。', mt: 'Waiting for the service to return this result.', audio: 'chunk-06.wav', logs: ['audio stream 12.12s — 14.60s', 'stream still open'] },
-]
 
 function formatTime(ms) {
   const seconds = Math.floor(ms / 1000)
@@ -52,7 +43,7 @@ function formatTime(ms) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`
 }
 
-function eventStamp(item, side, index) {
+function eventStamp(item) {
   const explicit = item.asrEndTime ?? item.asr_end_time ?? item.end ?? item.ed ?? item.asr_time
   if (Number.isFinite(Number(explicit))) return Number(explicit)
   return Number(item.start || 0)
@@ -64,7 +55,7 @@ function buildTimelineRows(leftItems, rightItems, query) {
   const append = (side, items) => {
     items.forEach((item, index) => {
       if (q && !`${item.asr} ${item.mt}`.toLowerCase().includes(q)) return
-      const stamp = eventStamp(item, side, index)
+      const stamp = eventStamp(item)
       const key = String(stamp)
       if (!grouped.has(key)) {
         grouped.set(key, { id: `time-${key}`, stamp, left: [], right: [] })
@@ -198,6 +189,8 @@ function App() {
             url: service.grpc_url || item.url,
             type: service.type || 'grpc',
             has_api_key: service.has_api_key || false,
+            debug_log: service.debug_log || '',
+            debug_root: service.debug_root || '',
           }
         }))
       })
@@ -374,24 +367,6 @@ function App() {
     }
   }
 
-  const uploadSelectedFile = async (file) => {
-    setUploadId('')
-    setUploadState('uploading')
-    try {
-      const form = new FormData()
-      form.append('video', file)
-      const response = await fetch(`${API_BASE}/api/uploads`, { method: 'POST', body: form })
-      if (!response.ok) throw new Error('upload')
-      const data = await response.json()
-      setUploadId(data.upload_id)
-      setUploadState('ready')
-      setServerState('connected')
-    } catch {
-      setUploadState('failed')
-      setServerState('offline')
-      notify('音频加载到后端失败，点击开始时会尝试直接上传')
-    }
-  }
   const uploadSelectedFileWithProgress = async (file) => {
     setUploadId('')
     setUploadState('uploading')
@@ -456,10 +431,6 @@ function App() {
     notify(type === 'grpc' ? 'gRPC 服务已加入对比' : `${SERVICE_TYPE_LABEL[type] || type} 服务已加入对比`)
   }
 
-  const updateSystemUrl = (id, url) => {
-    setSystems(items => items.map(system => system.id === id ? { ...system, url } : system))
-  }
-
   // Persist the two compare slots (left + right) to the backend config file.
   // We always send a complete payload so the server can atomically rewrite
   // the file; missing slots fall back to empty so the user can clearly see
@@ -497,8 +468,8 @@ function App() {
   }
 
   const openEditService = (system) => {
-    const isSlot = system.id === 'system-a' || system.id === 'system-b'
-    const side = system.id === 'system-a' ? 'left' : system.id === 'system-b' ? 'right' : null
+    const isSlot = slotA === system.id || slotB === system.id
+    const side = slotA === system.id ? 'left' : slotB === system.id ? 'right' : null
     const stype = system.type || 'grpc'
     setEditingType(stype)
     setEditingService({
@@ -506,7 +477,6 @@ function App() {
       isSlot,
       side,
       label: system.label || '',
-      type: stype,
       url: system.url || '',
       api_key: '',
       has_api_key: system.has_api_key || !!system.api_key,
@@ -535,9 +505,9 @@ function App() {
     })
 
     if (isSlot) {
-      const other = side === 'left' ? systems[1] : systems[0]
+      const otherSystem = side === 'left' ? systems.find(s => s.id === slotB) : systems.find(s => s.id === slotA)
       try {
-        const otherEntry = { label: other?.label || '', type: other?.type || 'grpc', url: other?.url || '', api_key: '', debug_log: other?.debug_log || '', debug_root: other?.debug_root || '' }
+        const otherEntry = { label: otherSystem?.label || '', type: otherSystem?.type || 'grpc', url: otherSystem?.url || '', api_key: '', debug_log: otherSystem?.debug_log || '', debug_root: otherSystem?.debug_root || '' }
         const leftEntry = side === 'left' ? updated : otherEntry
         const rightEntry = side === 'right' ? updated : otherEntry
         await persistSlots(leftEntry, rightEntry)
@@ -568,14 +538,16 @@ function App() {
   const assignToSlot = (serviceId, slot) => {
     if (slot === 'A') {
       setSlotA(current => current === serviceId ? 'system-a' : serviceId)
+      if (slotB === serviceId) setSlotB('system-b')
     } else {
       setSlotB(current => current === serviceId ? 'system-b' : serviceId)
+      if (slotA === serviceId) setSlotA('system-a')
     }
   }
 
   const slotService = (slot) => {
     const id = slot === 'A' ? slotA : slotB
-    return systems.find(item => item.id === id) || systems[slot === 'A' ? 0 : 1] || systems[0]
+    return systems.find(item => item.id === id) || systems[slot === 'A' ? 0 : 1]
   }
 
   const cancelServerRun = async (runId) => {
@@ -789,7 +761,7 @@ function App() {
     setMediaMuted(value => !value)
   }
 
-  const copyValue = value => { navigator.clipboard?.writeText(value); notify('已复制服务地址') }
+
 
   const runStatusBar = (
     <div className={`run-bar source-run-bar ${uploadState === 'failed' ? 'failed' : ''}`}>

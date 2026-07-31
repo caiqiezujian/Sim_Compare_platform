@@ -2,12 +2,14 @@
   "services": {
     "left": {
       "label": "线上稳定版",
+      "type": "grpc",
       "grpc_url": "10.185.1.71:16552",
       "debug_log": "",
       "debug_root": ""
     },
     "right": {
       "label": "候选实验版",
+      "type": "grpc",
       "grpc_url": "10.185.1.71:18999",
       "debug_log": "",
       "debug_root": ""

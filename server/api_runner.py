@@ -116,24 +116,45 @@ async def _run_qwen_async(
     mt_index = 0  # index of next MT segment to pair
     session_finished = False
     last_event_time = time.time()
-    # Streaming partial text (for real-time display)
-    current_asr_preview = ""
-    current_mt_preview = ""
-    current_asr_sn = 0  # next ASR segment index
-    current_mt_sn = 0   # next MT segment index
+    # Streaming partial text — store only the NEW portion (not full cumulative)
+    current_asr_partial = ""  # incremental text for current in-progress ASR segment
+    current_mt_partial = ""   # incremental text for current in-progress MT segment
+    last_asr_full = ""  # last full cumulative ASR text from Qwen (for diff)
+    last_mt_full = ""   # last full cumulative MT text from Qwen (for diff)
 
     def push_update():
         if on_update:
             on_update(list(chunks))
 
+    def _extract_new(old_full, new_full):
+        """Extract the new portion from a cumulative partial text.
+        
+        Qwen sends the full cumulative text each time (e.g. 'First' → 'First of' → 'First of all').
+        We need to find what's new compared to last time.
+        If new_full starts with old_full, just take the suffix.
+        Otherwise (text was corrected), find the common prefix and take the rest.
+        """
+        if not old_full:
+            return new_full
+        if new_full.startswith(old_full):
+            return new_full[len(old_full):]
+        # Find common prefix length
+        common = 0
+        for i in range(min(len(old_full), len(new_full))):
+            if old_full[i] != new_full[i]:
+                break
+            common = i + 1
+        # Take everything after the common prefix as "new"
+        return new_full[common:]
+
     def try_pair():
         """Pair ASR segments with MT segments by index, push chunks."""
-        nonlocal mt_index
+        nonlocal mt_index, current_asr_partial, current_mt_partial
         while mt_index < len(source_segments) and mt_index < len(mt_segments):
             idx = mt_index
             asr_text = source_segments[idx]
             mt_text = mt_segments[idx]
-            start_ms = int(idx * 2000)  # rough estimate
+            start_ms = int(idx * 2000)
             end_ms = int((idx + 1) * 2000)
             chunk = _make_chunk(idx + 1, idx + 1, conference_id, start_ms, end_ms,
                                 asr_text, mt_text, [f"Qwen #{idx+1}"])
@@ -145,19 +166,12 @@ async def _run_qwen_async(
             push_update()
 
     def push_partial():
-        """Push a partial chunk with streaming ASR/MT preview, deduplicated against locked segments."""
+        """Push current partial text as the last chunk (streaming, not locked)."""
+        nonlocal last_asr_full, last_mt_full
         idx = max(len(source_segments), len(mt_segments), len(chunks))
         
-        # Deduplicate: Qwen partial is full cumulative text, strip already-locked portion
-        locked_asr = "".join(source_segments)
-        asr_text = current_asr_preview
-        if locked_asr and asr_text and asr_text.startswith(locked_asr):
-            asr_text = asr_text[len(locked_asr):].strip()
-        
-        locked_mt = "".join(mt_segments)
-        mt_text = current_mt_preview
-        if locked_mt and mt_text and mt_text.startswith(locked_mt):
-            mt_text = mt_text[len(locked_mt):].strip()
+        asr_text = current_asr_partial
+        mt_text = current_mt_partial
         
         if not asr_text and not mt_text:
             return
@@ -169,6 +183,27 @@ async def _run_qwen_async(
         else:
             chunks.append(chunk)
         push_update()
+
+    def update_asr_partial(full_text):
+        """Update ASR partial from Qwen's cumulative text, extracting only new portion."""
+        nonlocal current_asr_partial, last_asr_full
+        new_portion = _extract_new(last_asr_full, full_text)
+        if new_portion:
+            current_asr_partial += new_portion
+        last_asr_full = full_text
+        push_partial()
+
+    def update_mt_partial(full_text, is_delta=False, delta=""):
+        """Update MT partial from Qwen's cumulative/delta text."""
+        nonlocal current_mt_partial, last_mt_full
+        if is_delta and delta:
+            current_mt_partial += delta
+        else:
+            new_portion = _extract_new(last_mt_full, full_text)
+            if new_portion:
+                current_mt_partial += new_portion
+            last_mt_full = full_text
+        push_partial()
 
     # Connect
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -215,7 +250,7 @@ async def _run_qwen_async(
 
         # Start receiver task
         async def receive_loop():
-            nonlocal session_finished, last_event_time, current_asr_preview, current_mt_preview
+            nonlocal session_finished, last_event_time, current_asr_partial, current_mt_partial, last_asr_full, last_mt_full
             try:
                 async for message in ws:
                     last_event_time = time.time()
@@ -224,48 +259,48 @@ async def _run_qwen_async(
                     except Exception:
                         continue
                     etype = event.get("type", "")
-                    logger.info("Qwen event: type=%s", etype)
 
-                    # ASR streaming partial (real-time preview)
+                    # ASR streaming partial — Qwen sends cumulative text, we extract new portion
                     if etype == "conversation.item.input_audio_transcription.text":
                         text = (event.get("text") or "")
                         stash = (event.get("stash") or "")
-                        preview = (text + stash).strip()
-                        if preview:
-                            current_asr_preview = preview
-                            push_partial()
+                        full = (text + stash).strip()
+                        if full:
+                            update_asr_partial(full)
 
-                    # ASR completed (final for this segment)
+                    # ASR completed — lock this segment, reset partial state
                     elif etype == "conversation.item.input_audio_transcription.completed":
                         transcript = (event.get("transcript") or "").strip()
                         if transcript:
                             source_segments.append(transcript)
-                            current_asr_preview = ""
+                            current_asr_partial = ""
+                            last_asr_full = ""
                             if chunks:
                                 chunks[-1]["asr"] = transcript
                             try_pair()
                             push_update()
 
-                    # MT streaming partial (real-time preview)
+                    # MT streaming partial (text+stash mode — cumulative)
                     elif etype == "response.audio_transcript.text":
                         text = (event.get("text") or "")
                         stash = (event.get("stash") or "")
-                        preview = (text + stash).strip()
-                        if preview:
-                            current_mt_preview = preview
-                            push_partial()
+                        full = (text + stash).strip()
+                        if full:
+                            update_mt_partial(full)
+
+                    # MT streaming delta (incremental, not cumulative)
                     elif etype == "response.audio_transcript.delta":
                         delta = (event.get("delta") or "").strip()
                         if delta:
-                            current_mt_preview += delta
-                            push_partial()
+                            update_mt_partial("", is_delta=True, delta=delta)
 
                     # MT completed (primary path)
                     elif etype == "response.audio_transcript.done":
                         text = (event.get("transcript") or event.get("text") or "").strip()
                         if text:
                             mt_segments.append(text)
-                            current_mt_preview = ""
+                            current_mt_partial = ""
+                            last_mt_full = ""
                             if chunks:
                                 chunks[-1]["mt"] = text
                             try_pair()
@@ -275,15 +310,15 @@ async def _run_qwen_async(
                     elif etype == "response.text.delta":
                         delta = (event.get("delta") or "").strip()
                         if delta:
-                            current_mt_preview += delta
-                            push_partial()
+                            update_mt_partial("", is_delta=True, delta=delta)
 
                     # MT completed (fallback path)
                     elif etype == "response.text.done":
                         text = (event.get("text") or "").strip()
                         if text:
                             mt_segments.append(text)
-                            current_mt_preview = ""
+                            current_mt_partial = ""
+                            last_mt_full = ""
                             if chunks:
                                 chunks[-1]["mt"] = text
                             try_pair()

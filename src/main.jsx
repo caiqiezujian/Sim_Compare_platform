@@ -102,34 +102,68 @@ function buildTimelineLayout(rows) {
   }
 }
 
+function splitIntoVisualLines(text, containerWidth, font) {
+  if (!text || !containerWidth) return text ? [text] : []
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  ctx.font = font
+  const lines = []
+  let current = ''
+  for (const char of text) {
+    if (ctx.measureText(current + char).width > containerWidth && current) {
+      lines.push(current)
+      current = char
+    } else {
+      current += char
+    }
+  }
+  if (current) lines.push(current)
+  return lines
+}
+
 function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
-  const leftRef = useRef(null)
-  const rightRef = useRef(null)
+  const leftBoxRef = useRef(null)
+  const rightBoxRef = useRef(null)
+  const [boxWidth, setBoxWidth] = useState(0)
 
   useEffect(() => {
-    if (leftRef.current) leftRef.current.scrollTop = leftRef.current.scrollHeight
+    const measure = () => {
+      if (leftBoxRef.current) {
+        const style = window.getComputedStyle(leftBoxRef.current)
+        setBoxWidth(leftBoxRef.current.clientWidth - parseInt(style.paddingLeft || 0) - parseInt(style.paddingRight || 0))
+      }
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  useEffect(() => {
+    if (leftBoxRef.current) leftBoxRef.current.scrollTop = leftBoxRef.current.scrollHeight
   }, [leftItems])
   useEffect(() => {
-    if (rightRef.current) rightRef.current.scrollTop = rightRef.current.scrollHeight
+    if (rightBoxRef.current) rightBoxRef.current.scrollTop = rightBoxRef.current.scrollHeight
   }, [rightItems])
 
-  const renderLines = (items, color) => {
-    const lines = []
-    items.forEach((item, i) => {
-      const isLast = i === items.length - 1
-      const isStreaming = isLast && running && item.status !== 'done'
-      if (item.asr) {
-        lines.push({ text: item.asr, type: 'asr', isNew: isStreaming, color })
-      }
-      if (item.mt) {
-        lines.push({ text: item.mt, type: 'mt', isNew: isStreaming, color })
-      }
-    })
-    return lines
+  const font = '13px Inter, system-ui, sans-serif'
+
+  const buildInterleaved = (items, color) => {
+    const asrFull = items.map(c => c.asr).filter(Boolean).join('')
+    const mtFull = items.map(c => c.mt).filter(Boolean).join('')
+    if (!asrFull && !mtFull) return []
+    const asrLines = splitIntoVisualLines(asrFull, boxWidth, font)
+    const mtLines = splitIntoVisualLines(mtFull, boxWidth, font)
+    const maxLines = Math.max(asrLines.length, mtLines.length)
+    const result = []
+    for (let i = 0; i < maxLines; i++) {
+      result.push({ text: asrLines[i] || '', type: 'asr', isLast: i === asrLines.length - 1, color })
+      result.push({ text: mtLines[i] || '', type: 'mt', isLast: i === mtLines.length - 1, color })
+    }
+    return result
   }
 
-  const leftLines = renderLines(leftItems, 'cyan')
-  const rightLines = renderLines(rightItems, 'violet')
+  const leftLines = buildInterleaved(leftItems, 'cyan')
+  const rightLines = buildInterleaved(rightItems, 'violet')
   const leftLabel = slotService('A')?.label || '系统 A'
   const rightLabel = slotService('B')?.label || '系统 B'
 
@@ -138,15 +172,13 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
       <div className="benchmark-box-header">
         <span className={`system-badge ${color}`}>{color === 'cyan' ? 'A' : 'B'}</span>
         <strong>{label}</strong>
-        <span className="benchmark-line-count">{lines.length > 0 ? `${lines.filter(l => l.type === 'asr').length} 句` : ''}</span>
         {running && <span className="benchmark-live-dot" />}
       </div>
       <div className="benchmark-box-body" ref={ref}>
         {lines.length === 0 && <div className="benchmark-empty">等待结果…</div>}
         {lines.map((line, i) => (
-          <div key={i} className={`benchmark-line ${line.type} ${line.isNew ? 'new' : ''}`}>
-            <span className="benchmark-line-tag">{line.type === 'asr' ? 'ASR' : 'MT'}</span>
-            <span className="benchmark-line-text">{line.text}</span>
+          <div key={i} className={`bm-row ${line.type} ${line.color} ${line.isLast && running ? 'new' : ''} ${!line.text ? 'empty' : ''}`}>
+            {line.text || '\u00A0'}
           </div>
         ))}
       </div>
@@ -157,8 +189,8 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
     <section className="benchmark-panel">
       <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> LIVE OUTPUT</div><h2>实时结果</h2></div></div>
       <div className="benchmark-grid">
-        {renderBox(leftLines, leftLabel, 'cyan', leftRef)}
-        {renderBox(rightLines, rightLabel, 'violet', rightRef)}
+        {renderBox(leftLines, leftLabel, 'cyan', leftBoxRef)}
+        {renderBox(rightLines, rightLabel, 'violet', rightBoxRef)}
       </div>
     </section>
   )

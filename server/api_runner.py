@@ -145,11 +145,20 @@ async def _run_qwen_async(
             push_update()
 
     def push_partial():
-        """Push a partial chunk with streaming ASR/MT preview for real-time display."""
-        # Show the in-progress segment at the end of the chunks list
-        idx = max(len(source_segments), len(chunks))
-        asr_text = current_asr_preview or (source_segments[-1] if source_segments else "")
-        mt_text = current_mt_preview or (mt_segments[-1] if mt_segments else "")
+        """Push a partial chunk with streaming ASR/MT preview, deduplicated against locked segments."""
+        idx = max(len(source_segments), len(mt_segments), len(chunks))
+        
+        # Deduplicate: Qwen partial is full cumulative text, strip already-locked portion
+        locked_asr = "".join(source_segments)
+        asr_text = current_asr_preview
+        if locked_asr and asr_text and asr_text.startswith(locked_asr):
+            asr_text = asr_text[len(locked_asr):].strip()
+        
+        locked_mt = "".join(mt_segments)
+        mt_text = current_mt_preview
+        if locked_mt and mt_text and mt_text.startswith(locked_mt):
+            mt_text = mt_text[len(locked_mt):].strip()
+        
         if not asr_text and not mt_text:
             return
         chunk = _make_chunk(idx + 1, idx + 1, conference_id,
@@ -183,9 +192,9 @@ async def _run_qwen_async(
         )
 
     try:
-        # Configure session
+        # Configure session — match qwen_demo.py settings
         session_config = {
-            "modalities": ["text"],
+            "modalities": ["text", "audio"],
             "input_audio_format": "pcm",
             "output_audio_format": "pcm",
             "translation": {"language": lang_to},
@@ -215,6 +224,7 @@ async def _run_qwen_async(
                     except Exception:
                         continue
                     etype = event.get("type", "")
+                    logger.info("Qwen event: type=%s", etype)
 
                     # ASR streaming partial (real-time preview)
                     if etype == "conversation.item.input_audio_transcription.text":
@@ -231,7 +241,10 @@ async def _run_qwen_async(
                         if transcript:
                             source_segments.append(transcript)
                             current_asr_preview = ""
+                            if chunks:
+                                chunks[-1]["asr"] = transcript
                             try_pair()
+                            push_update()
 
                     # MT streaming partial (real-time preview)
                     elif etype == "response.audio_transcript.text":
@@ -253,7 +266,10 @@ async def _run_qwen_async(
                         if text:
                             mt_segments.append(text)
                             current_mt_preview = ""
+                            if chunks:
+                                chunks[-1]["mt"] = text
                             try_pair()
+                            push_update()
 
                     # MT streaming delta (fallback text path)
                     elif etype == "response.text.delta":
@@ -268,7 +284,10 @@ async def _run_qwen_async(
                         if text:
                             mt_segments.append(text)
                             current_mt_preview = ""
+                            if chunks:
+                                chunks[-1]["mt"] = text
                             try_pair()
+                            push_update()
 
                     elif etype == "session.finished":
                         session_finished = True

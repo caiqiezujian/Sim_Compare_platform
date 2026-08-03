@@ -27,12 +27,12 @@ const maskKey = (key) => {
   return key.slice(0, 3) + '****' + key.slice(-4)
 }
 
-const SERVICE_TYPE_LABEL = { grpc: 'gRPC', doubao: '豆包', qwen: 'Qwen', openai: 'OpenAI', gemini: 'Gemini' }
+const SERVICE_TYPE_LABEL = { grpc: 'gRPC', doubao: '豆包', qwen: 'Qwen', huawei: '华为', openai: 'OpenAI', gemini: 'Gemini' }
 
 const serviceDisplay = (system) => {
   if (!system) return '未配置'
   const t = system.type || 'grpc'
-  if (t === 'grpc') return system.url || '未配置'
+  if (t === 'grpc' || t === 'huawei') return system.url ? (system.url.length > 40 ? system.url.slice(0, 40) + '...' : system.url) : '未配置'
   return (system.api_key || system.has_api_key) ? (maskKey(system.api_key) || 'Key 已配置') : '未配置 Key'
 }
 
@@ -102,41 +102,9 @@ function buildTimelineLayout(rows) {
   }
 }
 
-function splitIntoVisualLines(text, containerWidth, font) {
-  if (!text || !containerWidth) return text ? [text] : []
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  ctx.font = font
-  const lines = []
-  let current = ''
-  for (const char of text) {
-    if (ctx.measureText(current + char).width > containerWidth && current) {
-      lines.push(current)
-      current = char
-    } else {
-      current += char
-    }
-  }
-  if (current) lines.push(current)
-  return lines
-}
-
 function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
   const leftBoxRef = useRef(null)
   const rightBoxRef = useRef(null)
-  const [boxWidth, setBoxWidth] = useState(0)
-
-  useEffect(() => {
-    const measure = () => {
-      if (leftBoxRef.current) {
-        const style = window.getComputedStyle(leftBoxRef.current)
-        setBoxWidth(leftBoxRef.current.clientWidth - parseInt(style.paddingLeft || 0) - parseInt(style.paddingRight || 0))
-      }
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
 
   useEffect(() => {
     if (leftBoxRef.current) leftBoxRef.current.scrollTop = leftBoxRef.current.scrollHeight
@@ -145,33 +113,17 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
     if (rightBoxRef.current) rightBoxRef.current.scrollTop = rightBoxRef.current.scrollHeight
   }, [rightItems])
 
-  const font = '15px Inter, system-ui, sans-serif'
+  const buildText = (items) => ({
+    asr: items.map(c => c.asr).filter(Boolean).join(''),
+    mt: items.map(c => c.mt).filter(Boolean).join(''),
+  })
 
-  const buildInterleaved = (items, color) => {
-    const asrFull = items.map(c => c.asr).filter(Boolean).join('')
-    const mtFull = items.map(c => c.mt).filter(Boolean).join('')
-    if (!asrFull && !mtFull) return []
-    const asrLines = splitIntoVisualLines(asrFull, boxWidth, font)
-    const mtLines = splitIntoVisualLines(mtFull, boxWidth, font)
-    const maxLines = Math.max(asrLines.length, mtLines.length)
-    const result = []
-    for (let i = 0; i < maxLines; i++) {
-      const asrLine = asrLines[i] || ''
-      const mtLine = mtLines[i] || ''
-      // ASR on odd rows (1st, 3rd, 5th...), MT on even rows (2nd, 4th, 6th...)
-      // If ASR has content at this level, push it; else push empty placeholder
-      result.push({ text: asrLine, type: 'asr', isLast: i === asrLines.length - 1 && asrLine !== '', color })
-      result.push({ text: mtLine, type: 'mt', isLast: i === mtLines.length - 1 && mtLine !== '', color })
-    }
-    return result
-  }
-
-  const leftLines = buildInterleaved(leftItems, 'cyan')
-  const rightLines = buildInterleaved(rightItems, 'violet')
+  const leftText = buildText(leftItems)
+  const rightText = buildText(rightItems)
   const leftLabel = slotService('A')?.label || '系统 A'
   const rightLabel = slotService('B')?.label || '系统 B'
 
-  const renderBox = (lines, label, color, ref) => (
+  const renderBox = (text, label, color, ref) => (
     <div className={`benchmark-box ${color} ${running ? 'live' : ''}`}>
       <div className="benchmark-box-header">
         <span className={`system-badge ${color}`}>{color === 'cyan' ? 'A' : 'B'}</span>
@@ -179,12 +131,9 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
         {running && <span className="benchmark-live-dot" />}
       </div>
       <div className="benchmark-box-body" ref={ref}>
-        {lines.length === 0 && <div className="benchmark-empty">等待结果…</div>}
-        {lines.map((line, i) => (
-          <div key={i} className={`bm-row ${line.type} ${line.color} ${line.isLast && running ? 'new' : ''} ${!line.text ? 'empty' : ''}`}>
-            {line.text || '\u00A0'}
-          </div>
-        ))}
+        {(!text.asr && !text.mt) && <div className="benchmark-empty">等待结果…</div>}
+        {text.asr && <div className={`bm-stream asr ${color}`}>{text.asr}</div>}
+        {text.mt && <div className={`bm-stream mt ${color}`}>{text.mt}</div>}
       </div>
     </div>
   )
@@ -193,8 +142,8 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
     <section className="benchmark-panel">
       <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> LIVE OUTPUT</div><h2>实时结果</h2></div></div>
       <div className="benchmark-grid">
-        {renderBox(leftLines, leftLabel, 'cyan', leftBoxRef)}
-        {renderBox(rightLines, rightLabel, 'violet', rightBoxRef)}
+        {renderBox(leftText, leftLabel, 'cyan', leftBoxRef)}
+        {renderBox(rightText, rightLabel, 'violet', rightBoxRef)}
       </div>
     </section>
   )
@@ -391,7 +340,7 @@ function App() {
         if (run.status === 'completed') {
           setRunning(false)
           setServerRunId(null)
-          notify('gRPC 对比任务完成')
+          notify(activeRoute === 'benchmark' ? '对比任务完成' : 'gRPC 对比任务完成')
         } else if (run.status === 'cancelled') {
           setRunning(false)
           setServerRunId(null)
@@ -404,6 +353,8 @@ function App() {
           setRunning(false)
           setServerRunId(null)
           notify(`任务执行失败：${run.error || '请查看后端窗口日志'}`)
+        } else if (run.progress >= 100 || run.stage === 'translating') {
+          setRunning(false)
         }
       } catch {
         if (!disposed) {
@@ -532,12 +483,13 @@ function App() {
     const form = new FormData(event.currentTarget)
     const label = String(form.get('label') || '').trim() || '自定义服务'
     const type = newServiceType
-    const url = type === 'grpc' ? String(form.get('url') || '').trim() : ''
-    const api_key = type !== 'grpc' ? String(form.get('api_key') || '').trim() : ''
+    const url = (type === 'grpc' || type === 'huawei') ? String(form.get('url') || '').trim() : ''
+    const api_key = (type !== 'grpc' && type !== 'huawei') ? String(form.get('api_key') || '').trim() : ''
     const debug_log = type === 'grpc' ? String(form.get('debug_log') || '').trim() : ''
     const debug_root = type === 'grpc' ? String(form.get('debug_root') || '').trim() : ''
     if (type === 'grpc' && !url) return
-    if (type !== 'grpc' && !api_key) return
+    if (type === 'huawei' && !url) return
+    if (type !== 'grpc' && type !== 'huawei' && !api_key) return
     const palette = ['amber', 'green', 'pink', 'teal']
     const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, type, api_key, has_api_key: !!api_key, language: 'zh → en', color: palette[systems.length % palette.length], enabled: true, debug_log, debug_root }
     setSystems(items => [...items, next])
@@ -727,9 +679,11 @@ function App() {
         leftSystem ? { ...leftSystem, _side: 'left' } : null,
         rightSystem ? { ...rightSystem, _side: 'right' } : null,
       ]
-      const enabled = candidates.filter(system => system && system.enabled && (
-        (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
-      ))
+      const enabled = candidates.filter(system => system && system.enabled && (() => {
+        const t = system.type || 'grpc'
+        if (t === 'grpc' || t === 'huawei') return system.url.trim()
+        return system.api_key || system.has_api_key
+      })())
       if (!enabled.length) {
         notify('请至少选择一个服务分配到 A 或 B 槽位')
         if (mediaRef.current) {
@@ -932,8 +886,9 @@ function App() {
         <div className="side-label service-label">SERVICES</div>
         {(() => {
           const groups = [
-            { key: 'grpc', title: '我们的系统', list: systems.filter(s => (s.type || 'grpc') === 'grpc') },
-            { key: 'api', title: '外部模型', list: systems.filter(s => (s.type || 'grpc') !== 'grpc') },
+            { key: 'grpc', title: 'HwMT同传系统', list: systems.filter(s => (s.type || 'grpc') === 'grpc') },
+            { key: 'huawei', title: '华为 WSS 同传', list: systems.filter(s => (s.type || 'grpc') === 'huawei') },
+            { key: 'api', title: '其他厂商同传模型', list: systems.filter(s => { const t = (s.type || 'grpc'); return t !== 'grpc' && t !== 'huawei'; }) },
           ]
           return groups.map(group => {
             const expanded = expandedGroups[group.key]
@@ -979,7 +934,7 @@ function App() {
                         </div>
                       )
                     })}
-                    <button className="service-folder-add" onClick={() => { setShowSystemModal(true); setNewServiceGroup(group.key); setNewServiceType(group.key === 'grpc' ? 'grpc' : 'doubao') }}><Plus size={13} /> 添加{group.title}</button>
+                    <button className="service-folder-add" onClick={() => { setShowSystemModal(true); setNewServiceGroup(group.key); setNewServiceType(group.key === 'grpc' ? 'grpc' : group.key === 'huawei' ? 'huawei' : 'doubao') }}><Plus size={13} /> 添加{group.title}</button>
                   </div>
                 )}
               </div>
@@ -1047,14 +1002,16 @@ function App() {
           </>
         )}
         {activeRoute === 'evaluation' && (
-          <section className="placeholder-panel">
-            <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> EVALUATION</div><h2>同传翻译质量评估</h2></div></div>
-            <div className="placeholder-body">
-              <Gauge size={28} />
-              <strong>功能开发中</strong>
-              <p>这里将提供同传翻译结果的自动化质量评估指标（如 BLEU、字错率、延迟、流畅度等），敬请期待。</p>
-            </div>
+          <>
+          <section className="page-heading"><div><div className="eyebrow"><span>EVALUATION</span><span className="slash">/</span><span>QUALITY</span></div><h1>同传质量评估 <em>live</em></h1><p>实时查看 ASR 与翻译文本输出，后续将接入自动化质量指标。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
+
+          <section className="control-grid">
+            <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频，后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
+            <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const meta = serviceDisplay(system); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-input"><span>{system.label}{system.type && system.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[system.type] || system.type}` : ''}</span><input value={meta} readOnly onFocus={() => setSelectedSystem(system.id)} placeholder="未配置" spellCheck="false" /></label><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label></div></div>
           </section>
+
+          <BenchmarkPanel leftItems={leftItems} rightItems={rightItems} slotService={slotService} running={running} />
+          </>
         )}
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
@@ -1076,8 +1033,8 @@ function App() {
         </div>
       )}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
-      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>{newServiceGroup === 'grpc' ? '添加 gRPC 服务' : newServiceGroup === 'api' ? '添加外部模型' : '添加服务'}</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label>{newServiceGroup === null && <label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>}{newServiceGroup === 'api' && <label>模型类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>}{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
-      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑{editingType === 'grpc' ? '内部系统' : '外部模型'}{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><input type="hidden" name="type" value={editingType} /><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <><label>模型类型<select value={editingType} onChange={event => setEditingType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label><label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '已配置，留空保持不变' : 'sk-...'} autoComplete="off" /></label></>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
+      {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>{newServiceGroup === 'grpc' ? '添加 gRPC 服务' : newServiceGroup === 'huawei' ? '添加华为 WSS 服务' : newServiceGroup === 'api' ? '添加其他厂商模型' : '添加服务'}</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label>{newServiceGroup === null && <label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>}{newServiceGroup === 'api' && <label>模型类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>}{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : newServiceType === 'huawei' ? <><label>WSS URL<input name="url" placeholder="wss://apigw-beta.huawei.com/ws/apiAsr/plug/audioTranslate?X-HW-ID=...&X-HW-APPKEY=...&appid=...&token=...&langFrom=zh&langTo=en" required spellCheck="false" /></label><div className="modal-hint"><Info size={14} /> 填入完整的华为同传 WSS 连接地址（含鉴权参数），仅保存在本地会话，不会写入 config 文件。</div></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
+      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑{editingType === 'grpc' ? 'HwMT同传系统' : '其他厂商模型'}{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><input type="hidden" name="type" value={editingType} /><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <><label>模型类型<select value={editingType} onChange={event => setEditingType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="huawei">Huawei · 华为</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>{editingType === 'huawei' ? <><label>WSS URL<input name="url" defaultValue={editingService.url} placeholder="wss://apigw-beta.huawei.com/ws/apiAsr/plug/audioTranslate?X-HW-ID=...&X-HW-APPKEY=...&appid=...&token=...&langFrom=zh&langTo=en" required spellCheck="false" /></label><div className="modal-hint"><Info size={14} /> 填入完整的华为同传 WSS 连接地址（含鉴权参数），仅保存在本地会话，不会写入 config 文件。</div></> : <label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '已配置，留空保持不变' : 'sk-...'} autoComplete="off" /></label>}</>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
     </div>
   )
 }

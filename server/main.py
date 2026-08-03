@@ -357,33 +357,49 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 sent = min((item.get("sent_ms") or 0) for item in available)
                 run["audio_sent_ms"] = sent
                 run["audio_total_ms"] = total
-                run["stage"] = "waiting_results" if total > 0 and sent >= total else "streaming"
+                # Progress is purely audio-based: 0-100% based on audio sent
                 if total > 0:
-                    run["progress"] = min(95, max(1, round(sent / total * 95)))
+                    run["progress"] = min(100, max(1, round(sent / total * 100)))
+                    run["stage"] = "streaming" if sent < total else "translating"
+                else:
+                    run["stage"] = "streaming"
 
             def run_side(side: str, endpoint: str, system: dict):
                 stype = (system.get("type") or "grpc").lower() if isinstance(system, dict) else "grpc"
                 if stype != "grpc":
-                    # External model API call (Qwen/Doubao)
-                    # Get API key: from system dict → config slot → external_services
-                    api_key = ""
-                    if isinstance(system, dict):
-                        api_key = str(system.get("api_key") or "").strip()
-                    if not api_key:
-                        api_key = str(service_config(side).get("api_key") or "").strip()
-                    if not api_key:
-                        # Look up in external_services by type
-                        for ext in external_services_config():
-                            if isinstance(ext, dict) and ext.get("type", "").lower() == stype:
-                                api_key = str(ext.get("api_key") or "").strip()
-                                break
-                    if not api_key:
-                        label = system.get("label") if isinstance(system, dict) else stype
-                        msg = f"{stype.upper()}（{label or 'API'}）未配置 API Key，请在服务设置中填写"
-                        rows = error_chunk(side, stype, msg)
-                        update_side(side, rows)
-                        run[f"{side}_error"] = msg
-                        return rows
+                    # External model API call (Qwen/Doubao/Huawei)
+                    # Huawei: WSS URL from system dict (not stored in config)
+                    wss_url = ""
+                    if stype == "huawei":
+                        wss_url = str(system.get("url") or "").strip() if isinstance(system, dict) else ""
+                        api_key = ""
+                        if not wss_url:
+                            label = system.get("label") if isinstance(system, dict) else stype
+                            msg = f"{stype.upper()}（{label or 'API'}）未配置 WSS URL，请在服务设置中填写"
+                            rows = error_chunk(side, stype, msg)
+                            update_side(side, rows)
+                            run[f"{side}_error"] = msg
+                            return rows
+                    else:
+                        # Get API key: from system dict → config slot → external_services
+                        api_key = ""
+                        if isinstance(system, dict):
+                            api_key = str(system.get("api_key") or "").strip()
+                        if not api_key:
+                            api_key = str(service_config(side).get("api_key") or "").strip()
+                        if not api_key:
+                            # Look up in external_services by type
+                            for ext in external_services_config():
+                                if isinstance(ext, dict) and ext.get("type", "").lower() == stype:
+                                    api_key = str(ext.get("api_key") or "").strip()
+                                    break
+                        if not api_key:
+                            label = system.get("label") if isinstance(system, dict) else stype
+                            msg = f"{stype.upper()}（{label or 'API'}）未配置 API Key，请在服务设置中填写"
+                            rows = error_chunk(side, stype, msg)
+                            update_side(side, rows)
+                            run[f"{side}_error"] = msg
+                            return rows
                     try:
                         from .api_runner import run_api
                         lang_to = "en" if lang == "zh" else "zh"
@@ -398,6 +414,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                             should_stop=should_stop,
                             on_stream_start=mark_stream_started,
                             on_audio_progress=lambda sent_ms, total_ms: update_audio_progress(side, sent_ms, total_ms),
+                            wss_url=wss_url,
                         )
                     except Exception as exc:
                         logger.exception(

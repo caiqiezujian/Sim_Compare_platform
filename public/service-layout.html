@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>service-item layout probe</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body { padding: 24px; background: var(--bg); }
+    .probe { display: flex; gap: 24px; align-items: flex-start; }
+    .panel {
+      width: 220px;
+      padding: 14px 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .panel h3 {
+      font: 600 10px 'DM Mono', monospace;
+      letter-spacing: .12em;
+      color: var(--text-3);
+      margin: 0 0 8px;
+      padding-left: 4px;
+    }
+    .service-label {
+      padding-top: 18px;
+      padding-left: 12px;
+      letter-spacing: .12em;
+      color: var(--text-3);
+      font: 600 10px 'DM Mono', monospace;
+    }
+    .item { /* shared base so we can re-use the real service-item styles */
+      all: revert;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="color:var(--text);font:600 12px sans-serif;margin:0 0 16px">不同 sidebar 宽度 + 不同服务名长度</h2>
+  <div class="probe">
+    <div class="panel">
+      <h3>sidebar 220px · 短名</h3>
+      <div class="side-label service-label">SERVICES</div>
+      <div class="service-item in-slot-a">
+        <span class="service-dot cyan"></span>
+        <span class="service-copy">
+          <strong>线上稳定版</strong>
+          <small>10.185.1.71:16552</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip active cyan">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+      <div class="service-item in-slot-b">
+        <span class="service-dot violet"></span>
+        <span class="service-copy">
+          <strong>候选实验版</strong>
+          <small>10.185.1.71:18999</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip active violet">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+        </div>
+      </div>
+      <div class="service-item">
+        <span class="service-dot amber"></span>
+        <span class="service-copy">
+          <strong>11111</strong>
+          <small>127.0.0.1:7860</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+      <div class="service-item">
+        <span class="service-dot cyan"></span>
+        <span class="service-copy">
+          <strong>1</strong>
+          <small>1</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="width: 180px">
+      <h3>sidebar 180px · 短名</h3>
+      <div class="side-label service-label">SERVICES</div>
+      <div class="service-item in-slot-a">
+        <span class="service-dot cyan"></span>
+        <span class="service-copy">
+          <strong>线上稳定版</strong>
+          <small>10.185.1.71:16552</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip active cyan">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+      <div class="service-item in-slot-b">
+        <span class="service-dot violet"></span>
+        <span class="service-copy">
+          <strong>候选实验版</strong>
+          <small>10.185.1.71:18999</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip active violet">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+        </div>
+      </div>
+      <div class="service-item">
+        <span class="service-dot amber"></span>
+        <span class="service-copy">
+          <strong>11111</strong>
+          <small>127.0.0.1:7860</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>长名</h3>
+      <div class="side-label service-label">SERVICES</div>
+      <div class="service-item in-slot-a">
+        <span class="service-dot cyan"></span>
+        <span class="service-copy">
+          <strong>SuperExperimental-Long-SystemName-001</strong>
+          <small>grpc.internal.example.com:65535</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip active cyan">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+        </div>
+      </div>
+      <div class="service-item">
+        <span class="service-dot violet"></span>
+        <span class="service-copy">
+          <strong>候选实验版本B-fancy</strong>
+          <small>10.185.1.71:18999</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip active violet">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+      <div class="service-item">
+        <span class="service-dot amber"></span>
+        <span class="service-copy">
+          <strong>本地测试服务</strong>
+          <small>127.0.0.1:7860</small>
+        </span>
+        <div class="slot-chips">
+          <button class="slot-chip">A</button>
+          <button class="slot-chip">B</button>
+        </div>
+        <div class="service-actions">
+          <button class="service-icon-btn">P</button>
+          <button class="service-icon-btn danger">X</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="color:var(--text);font:600 12px sans-serif;margin:24px 0 16px">用 DevTools 测量每个 .service-item 的高度 &amp; A/B 按钮 top</h2>
+  <pre id="report" style="color:var(--text-2);font:12px monospace;background:var(--panel);padding:12px;border-radius:8px"></pre>
+  <script>
+    const rows = document.querySelectorAll('.service-item')
+    const lines = []
+    rows.forEach((row, i) => {
+      const r = row.getBoundingClientRect()
+      const chips = row.querySelector('.slot-chips').getBoundingClientRect()
+      lines.push(
+        `item[${i}] height=${r.height.toFixed(1)}  chips top-from-item=${(chips.top - r.top).toFixed(1)}  chips left=${chips.left.toFixed(1)}`
+      )
+    })
+    document.getElementById('report').textContent = lines.join('\n')
+  </script>
+</body>
+</html>

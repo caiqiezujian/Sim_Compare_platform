@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>App probe</title></head>
+<body>
+<script>
+  // Open the actual app in an iframe and measure service-items inside it
+  const iframe = document.createElement('iframe')
+  iframe.src = 'http://127.0.0.1:5173/'
+  iframe.style.width = '1280px'
+  iframe.style.height = '800px'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        const doc = iframe.contentDocument
+        const items = doc.querySelectorAll('.service-item')
+        const lines = []
+        items.forEach((row, i) => {
+          const r = row.getBoundingClientRect()
+          const chips = row.querySelector('.slot-chips')?.getBoundingClientRect()
+          lines.push(
+            `app-item[${i}] h=${r.height.toFixed(1)}  chips-top=${chips ? (chips.top - r.top).toFixed(1) : 'NA'}`
+          )
+        })
+        const pre = document.createElement('pre')
+        pre.id = 'report'
+        pre.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:10px;z-index:99;font:12px monospace;border:2px solid red;'
+        pre.textContent = lines.join('\n') + '\n\nitems count: ' + items.length
+        document.body.appendChild(pre)
+      } catch (e) {
+        const pre = document.createElement('pre')
+        pre.style.cssText = 'position:fixed;top:0;left:0;background:white;padding:10px;z-index:99;font:12px monospace;border:2px solid red;color:red;'
+        pre.textContent = 'CORS/error: ' + e.message
+        document.body.appendChild(pre)
+      }
+    }, 3000)
+  }
+</script>
+</body></html>

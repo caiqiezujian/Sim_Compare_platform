@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   AudioLines, Check, ChevronDown, CircleHelp, Clock3, FileAudio,
-  Gauge, GitCompareArrows, History, Info, Languages,
+  Gauge, GitCompareArrows, History, Info, Languages, LayoutDashboard,
   Link2, ListFilter, LoaderCircle, Logs, Maximize2, Pencil, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, TerminalSquare,
   UploadCloud, Volume2, VolumeX, X
@@ -100,6 +100,68 @@ function buildTimelineLayout(rows) {
     rows: positionedRows,
     height: Math.max(360, cursor + TIMELINE_BOTTOM_PADDING - TIMELINE_ROW_GAP),
   }
+}
+
+function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
+  const leftRef = useRef(null)
+  const rightRef = useRef(null)
+
+  useEffect(() => {
+    if (leftRef.current) leftRef.current.scrollTop = leftRef.current.scrollHeight
+  }, [leftItems])
+  useEffect(() => {
+    if (rightRef.current) rightRef.current.scrollTop = rightRef.current.scrollHeight
+  }, [rightItems])
+
+  const renderLines = (items, color) => {
+    const lines = []
+    items.forEach((item, i) => {
+      const isLast = i === items.length - 1
+      const isStreaming = isLast && running && item.status !== 'done'
+      if (item.asr) {
+        lines.push({ text: item.asr, type: 'asr', isNew: isStreaming, color })
+      }
+      if (item.mt) {
+        lines.push({ text: item.mt, type: 'mt', isNew: isStreaming, color })
+      }
+    })
+    return lines
+  }
+
+  const leftLines = renderLines(leftItems, 'cyan')
+  const rightLines = renderLines(rightItems, 'violet')
+  const leftLabel = slotService('A')?.label || '系统 A'
+  const rightLabel = slotService('B')?.label || '系统 B'
+
+  const renderBox = (lines, label, color, ref) => (
+    <div className={`benchmark-box ${color} ${running ? 'live' : ''}`}>
+      <div className="benchmark-box-header">
+        <span className={`system-badge ${color}`}>{color === 'cyan' ? 'A' : 'B'}</span>
+        <strong>{label}</strong>
+        <span className="benchmark-line-count">{lines.length > 0 ? `${lines.filter(l => l.type === 'asr').length} 句` : ''}</span>
+        {running && <span className="benchmark-live-dot" />}
+      </div>
+      <div className="benchmark-box-body" ref={ref}>
+        {lines.length === 0 && <div className="benchmark-empty">等待结果…</div>}
+        {lines.map((line, i) => (
+          <div key={i} className={`benchmark-line ${line.type} ${line.isNew ? 'new' : ''}`}>
+            <span className="benchmark-line-tag">{line.type === 'asr' ? 'ASR' : 'MT'}</span>
+            <span className="benchmark-line-text">{line.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <section className="benchmark-panel">
+      <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> LIVE OUTPUT</div><h2>实时结果</h2></div></div>
+      <div className="benchmark-grid">
+        {renderBox(leftLines, leftLabel, 'cyan', leftRef)}
+        {renderBox(rightLines, rightLabel, 'violet', rightRef)}
+      </div>
+    </section>
+  )
 }
 
 function App() {
@@ -317,9 +379,9 @@ function App() {
       }
     }
     poll()
-    const timer = window.setInterval(poll, 520)
+    const timer = window.setInterval(poll, activeRoute === 'benchmark' ? 200 : 520)
     return () => { disposed = true; window.clearInterval(timer) }
-  }, [serverRunId, mediaArmedRunId, mediaMuted])
+  }, [serverRunId, mediaArmedRunId, mediaMuted, activeRoute])
 
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]
@@ -819,6 +881,7 @@ function App() {
       <aside className="sidebar">
         <div className="route-switch">
           <button className={`route-item ${activeRoute === 'compare' ? 'active' : ''}`} onClick={() => setActiveRoute('compare')}><GitCompareArrows size={16} /> 同传对比调试</button>
+          <button className={`route-item ${activeRoute === 'benchmark' ? 'active' : ''}`} onClick={() => setActiveRoute('benchmark')}><LayoutDashboard size={16} /> 竞品评测</button>
           <button className={`route-item ${activeRoute === 'evaluation' ? 'active' : ''}`} onClick={() => setActiveRoute('evaluation')}><Gauge size={16} /> 同传质量评估</button>
         </div>
         {activeRoute === 'compare' && (<>
@@ -934,6 +997,18 @@ function App() {
               ))}
             </div>
           </section>
+        )}
+        {activeRoute === 'benchmark' && (
+          <>
+          <section className="page-heading"><div><div className="eyebrow"><span>BENCHMARK</span><span className="slash">/</span><span>SIDE-BY-SIDE</span></div><h1>竞品评测 <em>live</em></h1><p>实时对比两个同传服务的流式输出,ASR 与翻译交替展示。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
+
+          <section className="control-grid">
+            <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频，后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
+            <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const meta = serviceDisplay(system); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-input"><span>{system.label}{system.type && system.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[system.type] || system.type}` : ''}</span><input value={meta} readOnly onFocus={() => setSelectedSystem(system.id)} placeholder="未配置" spellCheck="false" /></label><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label></div></div>
+          </section>
+
+          <BenchmarkPanel leftItems={leftItems} rightItems={rightItems} slotService={slotService} running={running} />
+          </>
         )}
         {activeRoute === 'evaluation' && (
           <section className="placeholder-panel">

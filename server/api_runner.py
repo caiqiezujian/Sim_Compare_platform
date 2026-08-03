@@ -109,16 +109,15 @@ async def _run_qwen_async(
     total_ms = int(len(pcm) / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
     total_chunks = math.ceil(len(pcm) / QWEN_CHUNK_BYTES)
 
-    # State — simple approach: one active ASR partial + one active MT partial
-    # Each partial is the text+stash from Qwen, covering the current in-progress segment.
-    # When .completed/.done arrives, lock it and reset partial.
+    # State — one streaming chunk at the end that gets updated in-place.
+    # When both ASR+MT are locked via try_pair, the streaming chunk becomes
+    # a locked chunk, and the next partial event creates a new streaming chunk.
     source_segments: List[str] = []
     mt_segments: List[str] = []
     chunks: List[Dict[str, Any]] = []
     mt_index = 0
     session_finished = False
     last_event_time = time.time()
-    # Current partial previews (text+stash, overwritten each event)
     asr_partial_text = ""
     mt_partial_text = ""
 
@@ -127,7 +126,8 @@ async def _run_qwen_async(
             on_update(list(chunks))
 
     def try_pair():
-        """Pair locked ASR segments with MT segments by index."""
+        """Lock paired ASR+MT segments. Replaces the streaming chunk at this index
+        with a locked chunk (no _streaming flag), so the next push_partial creates a new one."""
         nonlocal mt_index
         while mt_index < len(source_segments) and mt_index < len(mt_segments):
             idx = mt_index
@@ -136,26 +136,32 @@ async def _run_qwen_async(
                                 source_segments[idx], mt_segments[idx],
                                 [f"Qwen #{idx+1}"])
             if idx < len(chunks):
-                chunks[idx] = chunk
+                chunks[idx] = chunk  # Replace streaming chunk with locked one
             else:
                 chunks.append(chunk)
             mt_index += 1
             push_update()
 
     def push_partial():
-        """Push/update the last chunk with current partial text (streaming preview)."""
-        nonlocal asr_partial_text, mt_partial_text
-        idx = max(len(source_segments), len(mt_segments), len(chunks))
+        """Update the last chunk in-place if it's streaming; otherwise create a new one.
+        Only updates fields that have content (don't clear asr when only mt is updating)."""
         asr_text = asr_partial_text
         mt_text = mt_partial_text
         if not asr_text and not mt_text:
             return
-        chunk = _make_chunk(idx + 1, idx + 1, conference_id,
-                            int(idx * 2000), int((idx + 1) * 2000),
-                            asr_text, mt_text, [f"Qwen #{idx+1} (streaming)"])
-        if idx < len(chunks):
-            chunks[idx] = chunk
+        # If last chunk is streaming, update only non-empty fields
+        if chunks and chunks[-1].get("_streaming"):
+            if asr_text:
+                chunks[-1]["asr"] = asr_text
+            if mt_text:
+                chunks[-1]["mt"] = mt_text
         else:
+            # Last chunk is locked (or no chunks yet) — create new streaming chunk
+            idx = len(chunks)
+            chunk = _make_chunk(idx + 1, idx + 1, conference_id,
+                                int(idx * 2000), int((idx + 1) * 2000),
+                                asr_text, mt_text, [f"Qwen #{idx+1} (streaming)"])
+            chunk["_streaming"] = True
             chunks.append(chunk)
         push_update()
 

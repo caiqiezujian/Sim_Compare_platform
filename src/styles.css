@@ -209,18 +209,18 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 }
 @keyframes benchmark-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .benchmark-box-body {
-  padding: 10px 14px;
+  padding: 12px 16px;
   min-height: 120px;
   max-height: 70vh;
   overflow-y: auto;
-  font: 13px Inter, system-ui, sans-serif;
-  line-height: 1.8;
+  font: 15px Inter, system-ui, sans-serif;
+  line-height: 1.9;
   word-break: break-word;
 }
-.benchmark-empty { color: var(--text-3); font-size: 13px; padding: 20px 0; text-align: center; }
+.benchmark-empty { color: var(--text-3); font-size: 14px; padding: 20px 0; text-align: center; }
 .bm-row {
-  min-height: 1.8em;
-  padding: 0 2px;
+  min-height: 1.9em;
+  padding: 1px 2px;
   transition: background .4s ease, color .4s ease;
 }
 .bm-row.asr { color: var(--text); }

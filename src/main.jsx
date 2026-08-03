@@ -145,7 +145,7 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
     if (rightBoxRef.current) rightBoxRef.current.scrollTop = rightBoxRef.current.scrollHeight
   }, [rightItems])
 
-  const font = '13px Inter, system-ui, sans-serif'
+  const font = '15px Inter, system-ui, sans-serif'
 
   const buildInterleaved = (items, color) => {
     const asrFull = items.map(c => c.asr).filter(Boolean).join('')
@@ -156,8 +156,12 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
     const maxLines = Math.max(asrLines.length, mtLines.length)
     const result = []
     for (let i = 0; i < maxLines; i++) {
-      result.push({ text: asrLines[i] || '', type: 'asr', isLast: i === asrLines.length - 1, color })
-      result.push({ text: mtLines[i] || '', type: 'mt', isLast: i === mtLines.length - 1, color })
+      const asrLine = asrLines[i] || ''
+      const mtLine = mtLines[i] || ''
+      // ASR on odd rows (1st, 3rd, 5th...), MT on even rows (2nd, 4th, 6th...)
+      // If ASR has content at this level, push it; else push empty placeholder
+      result.push({ text: asrLine, type: 'asr', isLast: i === asrLines.length - 1 && asrLine !== '', color })
+      result.push({ text: mtLine, type: 'mt', isLast: i === mtLines.length - 1 && mtLine !== '', color })
     }
     return result
   }

@@ -1,24 +1,30 @@
 """External model API runner for SimCompare.
 
-Supports OpenAI, Gemini, Qwen, and Doubao APIs.
+Supports Qwen (WebSocket real-time) and Doubao (TBD).
 Each provider transcribes audio (ASR) + translates (MT),
 returning chunks in the same format as grpc_runner.
 
 Audio format matches gRPC: 16kHz / mono / 16-bit PCM.
 No debug log functionality — external APIs don't expose that.
 """
+import asyncio
 import base64
 import json
-import re
+import logging
+import math
+import os
 import subprocess
 import tempfile
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
+logger = logging.getLogger("simcompare.api_runner")
+
 SAMPLE_RATE = 16000
-_TIMEOUT = 300
+BYTES_PER_SAMPLE = 2
 
 
 def _ensure_wav(path: str) -> str:
@@ -33,9 +39,12 @@ def _ensure_wav(path: str) -> str:
     return target
 
 
-def _read_file_bytes(path: str) -> bytes:
-    with open(path, "rb") as f:
-        return f.read()
+def _read_pcm(path: str) -> bytes:
+    """Read raw PCM bytes from a WAV file."""
+    import wave
+    wav_path = _ensure_wav(path)
+    with wave.open(wav_path, "rb") as reader:
+        return reader.readframes(reader.getnframes())
 
 
 def _make_chunk(chunk_id, sn, conference_id, start_ms, end_ms, asr_text, mt_text, logs=None):
@@ -55,269 +64,254 @@ def _make_chunk(chunk_id, sn, conference_id, start_ms, end_ms, asr_text, mt_text
     }
 
 
-def _parse_json_array(text: str) -> list:
-    """Extract a JSON array from text that might have markdown fences."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-    return []
+# ──────────────────────── Qwen (WebSocket) ────────────────────────
+
+QWEN_API_URL = (
+    "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
+    "?model=qwen3.5-livetranslate-flash-realtime"
+)
+QWEN_CHUNK_MS = 100
+QWEN_CHUNK_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * QWEN_CHUNK_MS / 1000)  # 3200
 
 
-# ──────────────────────── OpenAI ────────────────────────
+def _run_qwen_sync(
+    audio_file: str,
+    api_key: str,
+    lang: str,
+    lang_to: str,
+    conference_id: str,
+    on_update: Optional[Callable],
+    should_stop: Optional[Callable],
+    on_stream_start: Optional[Callable],
+    on_audio_progress: Optional[Callable],
+) -> List[Dict[str, Any]]:
+    """Qwen real-time translation via WebSocket (sync wrapper)."""
+    return asyncio.run(_run_qwen_async(
+        audio_file, api_key, lang, lang_to, conference_id,
+        on_update, should_stop, on_stream_start, on_audio_progress,
+    ))
 
-def _run_openai(audio_file, api_key, lang, lang_to, conference_id, on_update, should_stop, on_stream_start, on_audio_progress):
-    """OpenAI: Whisper ASR (with timestamps) + GPT-4o-mini MT (per segment)."""
+
+async def _run_qwen_async(
+    audio_file: str,
+    api_key: str,
+    lang: str,
+    lang_to: str,
+    conference_id: str,
+    on_update: Optional[Callable],
+    should_stop: Optional[Callable],
+    on_stream_start: Optional[Callable],
+    on_audio_progress: Optional[Callable],
+) -> List[Dict[str, Any]]:
+    import websockets
+
+    pcm = _read_pcm(audio_file)
+    total_ms = int(len(pcm) / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
+    total_chunks = math.ceil(len(pcm) / QWEN_CHUNK_BYTES)
+
+    # State
+    source_segments: List[str] = []
+    mt_segments: List[str] = []
+    chunks: List[Dict[str, Any]] = []
+    mt_index = 0  # index of next MT segment to pair
+    session_finished = False
+    last_event_time = time.time()
+
+    def push_update():
+        if on_update:
+            on_update(list(chunks))
+
+    def try_pair():
+        """Pair ASR segments with MT segments by index, push chunks."""
+        nonlocal mt_index
+        while mt_index < len(source_segments) and mt_index < len(mt_segments):
+            idx = mt_index
+            asr_text = source_segments[idx]
+            mt_text = mt_segments[idx]
+            start_ms = int(idx * 2000)  # rough estimate
+            end_ms = int((idx + 1) * 2000)
+            chunk = _make_chunk(idx + 1, idx + 1, conference_id, start_ms, end_ms,
+                                asr_text, mt_text, [f"Qwen #{idx+1}"])
+            if idx < len(chunks):
+                chunks[idx] = chunk
+            else:
+                chunks.append(chunk)
+            mt_index += 1
+            push_update()
+
+    # Connect
     headers = {"Authorization": f"Bearer {api_key}"}
-    lang_name = {"zh": "Chinese", "en": "English"}.get(lang, lang)
-    target_name = {"zh": "Chinese", "en": "English"}.get(lang_to, lang_to)
-
-    # Step 1: ASR — Whisper returns segments with timestamps
-    with open(audio_file, "rb") as f:
-        resp = requests.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers=headers,
-            files={"file": f},
-            data={"model": "whisper-1", "response_format": "verbose_json", "language": lang},
-            timeout=_TIMEOUT,
-        )
-    resp.raise_for_status()
-    asr_data = resp.json()
-    segments = asr_data.get("segments", [])
-    total_ms = int(float(asr_data.get("duration", 0)) * 1000)
-
-    if on_stream_start:
-        on_stream_start()
-
-    chunks = []
-    for i, seg in enumerate(segments):
-        if should_stop and should_stop():
-            break
-        asr_text = seg["text"].strip()
-        start_ms = int(seg["start"] * 1000)
-        end_ms = int(seg["end"] * 1000)
-
-        if on_audio_progress:
-            on_audio_progress(end_ms, total_ms)
-
-        # Step 2: MT — translate each segment
-        mt_text = ""
-        try:
-            r = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={**headers, "Content-Type": "application/json"},
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "system", "content": f"Translate from {lang_name} to {target_name}. Output only the translation."},
-                        {"role": "user", "content": asr_text},
-                    ],
-                    "temperature": 0,
-                },
-                timeout=60,
-            )
-            r.raise_for_status()
-            mt_text = r.json()["choices"][0]["message"]["content"].strip()
-        except Exception as exc:
-            mt_text = f"[MT error: {exc}]"
-
-        chunk = _make_chunk(i + 1, i + 1, conference_id, start_ms, end_ms, asr_text, mt_text,
-                            [f"OpenAI Whisper #{i+1}", "GPT-4o-mini MT"])
-        chunks.append(chunk)
-        if on_update:
-            on_update(list(chunks))
-
-    return chunks
-
-
-# ──────────────────────── Gemini ────────────────────────
-
-def _run_gemini(audio_file, api_key, lang, lang_to, conference_id, on_update, should_stop, on_stream_start, on_audio_progress):
-    """Gemini 1.5 Flash: audio input, returns ASR + MT as JSON in one call."""
-    wav_path = _ensure_wav(audio_file)
-    audio_b64 = base64.b64encode(_read_file_bytes(wav_path)).decode()
-    lang_name = {"zh": "Chinese", "en": "English"}.get(lang, lang)
-    target_name = {"zh": "Chinese", "en": "English"}.get(lang_to, lang_to)
-
-    prompt = (
-        f"Transcribe this audio in {lang_name} and translate each sentence to {target_name}. "
-        f'Return ONLY a JSON array: [{{"asr":"transcription","mt":"translation","start":0.0,"end":2.5}}] '
-        f"Split by sentences. Include timestamps in seconds."
-    )
-
-    resp = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
-        headers={"Content-Type": "application/json"},
-        json={
-            "contents": [{"parts": [
-                {"text": prompt},
-                {"inline_data": {"mime_type": "audio/wav", "data": audio_b64}},
-            ]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
-        },
-        timeout=_TIMEOUT,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    segments = _parse_json_array(text)
-
-    if on_stream_start:
-        on_stream_start()
-
-    chunks = []
-    for i, seg in enumerate(segments):
-        if should_stop and should_stop():
-            break
-        asr_text = str(seg.get("asr", "")).strip()
-        mt_text = str(seg.get("mt", "")).strip()
-        start_ms = int(float(seg.get("start", 0)) * 1000)
-        end_ms = int(float(seg.get("end", 0)) * 1000)
-        if on_audio_progress:
-            on_audio_progress(end_ms, end_ms)
-        chunk = _make_chunk(i + 1, i + 1, conference_id, start_ms, end_ms, asr_text, mt_text,
-                            [f"Gemini 1.5 Flash #{i+1}"])
-        chunks.append(chunk)
-        if on_update:
-            on_update(list(chunks))
-
-    return chunks
-
-
-# ──────────────────────── Qwen ────────────────────────
-
-def _run_qwen(audio_file, api_key, lang, lang_to, conference_id, on_update, should_stop, on_stream_start, on_audio_progress):
-    """Qwen-Audio-Turbo via DashScope: audio input, returns ASR + MT in one call."""
-    wav_path = _ensure_wav(audio_file)
-    audio_b64 = base64.b64encode(_read_file_bytes(wav_path)).decode()
-    lang_name = {"zh": "中文", "en": "English"}.get(lang, lang)
-    target_name = {"zh": "中文", "en": "English"}.get(lang_to, lang_to)
-
-    prompt = (
-        f'请转录这段{lang_name}音频并翻译为{target_name}。'
-        f'返回JSON数组:[{{"asr":"转录文本","mt":"翻译文本","start":0.0,"end":2.5}}]，按句子分割，包含时间戳(秒)。'
-    )
-
-    resp = requests.post(
-        "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={
-            "model": "qwen-audio-turbo",
-            "input": {"messages": [{"role": "user", "content": [
-                {"audio": f"data:audio/wav;base64,{audio_b64}"},
-                {"text": prompt},
-            ]}]},
-        },
-        timeout=_TIMEOUT,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    text = data["output"]["choices"][0]["message"]["content"]
-    segments = _parse_json_array(text)
-
-    if on_stream_start:
-        on_stream_start()
-
-    chunks = []
-    for i, seg in enumerate(segments):
-        if should_stop and should_stop():
-            break
-        asr_text = str(seg.get("asr", "")).strip()
-        mt_text = str(seg.get("mt", "")).strip()
-        start_ms = int(float(seg.get("start", 0)) * 1000)
-        end_ms = int(float(seg.get("end", 0)) * 1000)
-        if on_audio_progress:
-            on_audio_progress(end_ms, end_ms)
-        chunk = _make_chunk(i + 1, i + 1, conference_id, start_ms, end_ms, asr_text, mt_text,
-                            [f"Qwen-Audio-Turbo #{i+1}"])
-        chunks.append(chunk)
-        if on_update:
-            on_update(list(chunks))
-
-    return chunks
-
-
-# ──────────────────────── Doubao ────────────────────────
-
-def _run_doubao(audio_file, api_key, lang, lang_to, conference_id, on_update, should_stop, on_stream_start, on_audio_progress):
-    """Doubao: Volcano Engine Ark API (OpenAI-compatible).
-
-    Doubao LLM 不直接支持音频输入，需要分两步：
-    1. 用支持音频的模型（如 doubao-1.5-vision-pro）做 ASR
-    2. 用 doubao-pro 做 MT
-    如果 Ark API 不支持音频，返回提示信息。
-    """
-    wav_path = _ensure_wav(audio_file)
-    audio_b64 = base64.b64encode(_read_file_bytes(wav_path)).decode()
-    lang_name = {"zh": "Chinese", "en": "English"}.get(lang, lang)
-    target_name = {"zh": "Chinese", "en": "English"}.get(lang_to, lang_to)
-
-    # Try using Ark API with audio input (OpenAI-compatible format)
-    # Some Doubao models support audio via input_audio type
     try:
-        resp = requests.post(
-            "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "doubao-1.5-pro-32k-250115",
-                "messages": [
-                    {"role": "system", "content": (
-                        f"You are a simultaneous interpreter. Transcribe the audio in {lang_name} "
-                        f"and translate to {target_name}. "
-                        f'Return ONLY a JSON array: [{{"asr":"text","mt":"text","start":0.0,"end":2.5}}]'
-                    )},
-                    {"role": "user", "content": [
-                        {"type": "text", "text": "Transcribe and translate this audio."},
-                        {"type": "input_audio", "input_audio": {"data": f"data:audio/wav;base64,{audio_b64}"}},
-                    ]},
-                ],
-                "temperature": 0,
-            },
-            timeout=_TIMEOUT,
+        ws = await websockets.connect(
+            QWEN_API_URL,
+            additional_headers=headers,
+            ping_interval=None,
+            close_timeout=3,
+            open_timeout=30,
+            max_size=None,
         )
-        resp.raise_for_status()
-        data = resp.json()
-        text = data["choices"][0]["message"]["content"]
-        segments = _parse_json_array(text)
-    except Exception:
-        # Fallback: Doubao doesn't support audio via Ark API
-        # Need separate Volcano Engine ASR (requires app_id + access_token)
+    except TypeError:
+        ws = await websockets.connect(
+            QWEN_API_URL,
+            extra_headers=headers,
+            ping_interval=None,
+            close_timeout=3,
+            open_timeout=30,
+            max_size=None,
+        )
+
+    try:
+        # Configure session
+        session_config = {
+            "modalities": ["text"],
+            "input_audio_format": "pcm",
+            "output_audio_format": "pcm",
+            "translation": {"language": lang_to},
+            "input_audio_transcription": {"model": "qwen3-asr-flash-realtime"},
+        }
+        if lang:
+            session_config["input_audio_transcription"]["language"] = lang
+
+        await ws.send(json.dumps({
+            "event_id": f"evt_{int(time.time()*1000)}",
+            "type": "session.update",
+            "session": session_config,
+        }, ensure_ascii=False))
+        await asyncio.sleep(0.8)
+
         if on_stream_start:
             on_stream_start()
-        chunk = _make_chunk(1, 1, conference_id, 0, 0,
-                            "Doubao ASR 需要火山引擎语音识别服务",
-                            "豆包 LLM 不支持音频输入，需配置火山引擎 ASR (app_id + access_token) 后才能使用",
-                            ["Doubao: Ark API 不支持音频输入，需要单独配置 ASR"])
-        chunks = [chunk]
-        if on_update:
-            on_update(chunks)
-        return chunks
 
+        # Start receiver task
+        async def receive_loop():
+            nonlocal session_finished, last_event_time
+            try:
+                async for message in ws:
+                    last_event_time = time.time()
+                    try:
+                        event = json.loads(message)
+                    except Exception:
+                        continue
+                    etype = event.get("type", "")
+
+                    # ASR completed
+                    if etype == "conversation.item.input_audio_transcription.completed":
+                        transcript = (event.get("transcript") or "").strip()
+                        if transcript:
+                            source_segments.append(transcript)
+                            try_pair()
+
+                    # MT (primary path)
+                    elif etype == "response.audio_transcript.done":
+                        text = (event.get("transcript") or event.get("text") or "").strip()
+                        if text:
+                            mt_segments.append(text)
+                            try_pair()
+
+                    # MT (fallback path)
+                    elif etype == "response.text.done":
+                        text = (event.get("text") or "").strip()
+                        if text:
+                            mt_segments.append(text)
+                            try_pair()
+
+                    elif etype == "session.finished":
+                        session_finished = True
+
+                    elif etype == "error":
+                        logger.warning("Qwen error event: %s", event)
+
+            except Exception as exc:
+                logger.warning("Qwen receiver stopped: %s", exc)
+
+        receiver = asyncio.create_task(receive_loop())
+
+        # Send audio in chunks
+        offset = 0
+        sent_ms = 0
+        for idx in range(total_chunks):
+            if should_stop and should_stop():
+                break
+            chunk = pcm[offset:offset + QWEN_CHUNK_BYTES]
+            if not chunk:
+                break
+            await ws.send(json.dumps({
+                "event_id": f"evt_{int(time.time()*1000)}_{idx}",
+                "type": "input_audio_buffer.append",
+                "audio": base64.b64encode(chunk).decode("utf-8"),
+            }, ensure_ascii=False))
+            offset += QWEN_CHUNK_BYTES
+            sent_ms = int(offset / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
+            if on_audio_progress:
+                on_audio_progress(sent_ms, total_ms)
+            if idx % 50 == 0 or idx < 3:
+                logger.info("Qwen sending chunk %d/%d  sent=%dms", idx + 1, total_chunks, sent_ms)
+            await asyncio.sleep(QWEN_CHUNK_MS / 1000.0)
+
+        # Send ending silence + finish
+        silence = b"\x00" * QWEN_CHUNK_BYTES * 20  # 2s silence
+        for i in range(20):
+            await ws.send(json.dumps({
+                "event_id": f"evt_silence_{i}",
+                "type": "input_audio_buffer.append",
+                "audio": base64.b64encode(silence[i * QWEN_CHUNK_BYTES:(i+1) * QWEN_CHUNK_BYTES]).decode("utf-8"),
+            }, ensure_ascii=False))
+            await asyncio.sleep(0.1)
+
+        await ws.send(json.dumps({"event_id": "evt_finish", "type": "session.finish"}))
+        logger.info("Qwen session.finish sent, waiting for results...")
+
+        # Wait for session.finished or timeout
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            if session_finished:
+                break
+            if time.time() - last_event_time > 15:
+                break
+            await asyncio.sleep(0.5)
+
+        receiver.cancel()
+        try:
+            await receiver
+        except asyncio.CancelledError:
+            pass
+
+        # Final pairing pass
+        try_pair()
+
+        # If we have ASR but no MT, still create chunks
+        for i in range(len(source_segments)):
+            if i >= len(chunks):
+                asr_text = source_segments[i]
+                mt_text = mt_segments[i] if i < len(mt_segments) else ""
+                chunk = _make_chunk(i + 1, i + 1, conference_id,
+                                    int(i * 2000), int((i + 1) * 2000),
+                                    asr_text, mt_text, [f"Qwen #{i+1}"])
+                chunks.append(chunk)
+        push_update()
+
+    finally:
+        try:
+            await ws.close()
+        except Exception:
+            pass
+
+    return chunks
+
+
+# ──────────────────────── Doubao (TBD) ────────────────────────
+
+def _run_doubao(audio_file, api_key, lang, lang_to, conference_id, on_update, should_stop, on_stream_start, on_audio_progress):
+    """Doubao: TBD — needs Volcano Engine SDK / API docs."""
     if on_stream_start:
         on_stream_start()
-
-    chunks = []
-    for i, seg in enumerate(segments):
-        if should_stop and should_stop():
-            break
-        asr_text = str(seg.get("asr", "")).strip()
-        mt_text = str(seg.get("mt", "")).strip()
-        start_ms = int(float(seg.get("start", 0)) * 1000)
-        end_ms = int(float(seg.get("end", 0)) * 1000)
-        if on_audio_progress:
-            on_audio_progress(end_ms, end_ms)
-        chunk = _make_chunk(i + 1, i + 1, conference_id, start_ms, end_ms, asr_text, mt_text,
-                            [f"Doubao #{i+1}"])
-        chunks.append(chunk)
-        if on_update:
-            on_update(list(chunks))
-
+    chunk = _make_chunk(1, 1, conference_id, 0, 0,
+                        "豆包同传服务待接入",
+                        "Doubao (Seed LiveInterpret 2.0) 需要火山引擎 SDK,待后续接入",
+                        ["Doubao: 待接入"])
+    chunks = [chunk]
+    if on_update:
+        on_update(chunks)
     return chunks
 
 
@@ -337,14 +331,11 @@ def run_api(
 ) -> List[Dict[str, Any]]:
     """Run an external model API and return chunks like grpc_runner."""
     provider = provider.lower()
-    runners = {
-        "openai": _run_openai,
-        "gemini": _run_gemini,
-        "qwen": _run_qwen,
-        "doubao": _run_doubao,
-    }
-    runner = runners.get(provider)
-    if not runner:
+    if provider == "qwen":
+        return _run_qwen_sync(audio_file, api_key, lang, lang_to, conference_id,
+                              on_update, should_stop, on_stream_start, on_audio_progress)
+    elif provider == "doubao":
+        return _run_doubao(audio_file, api_key, lang, lang_to, conference_id,
+                           on_update, should_stop, on_stream_start, on_audio_progress)
+    else:
         raise ValueError(f"Unknown provider: {provider}")
-    return runner(audio_file, api_key, lang, lang_to, conference_id,
-                  on_update, should_stop, on_stream_start, on_audio_progress)

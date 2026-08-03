@@ -219,13 +219,12 @@ async def _run_qwen_async(
                         continue
                     etype = event.get("type", "")
 
-                    # ASR streaming: text + stash = current preview (overwrite, not accumulate)
+                    # ASR streaming: only use confirmed 'text' field (grows only, no revision)
+                    # 'stash' is unconfirmed prediction — can change wildly, don't use it for display
                     if etype == "conversation.item.input_audio_transcription.text":
-                        text = (event.get("text") or "")
-                        stash = (event.get("stash") or "")
-                        preview = (text + stash).strip()
-                        if preview:
-                            asr_partial_text = preview
+                        text = (event.get("text") or "").strip()
+                        if text:
+                            asr_partial_text = text
                             push_partial()
 
                     # ASR final: lock segment, reset partial
@@ -239,22 +238,18 @@ async def _run_qwen_async(
                             try_pair()
                             push_update()
 
-                    # MT streaming (audio+text mode): text + stash = current preview
-                    elif etype == "response.audio_transcript.text":
-                        text = (event.get("text") or "")
-                        stash = (event.get("stash") or "")
-                        preview = (text + stash).strip()
-                        if preview:
-                            mt_partial_text = preview
+                    # MT streaming (text mode): only use confirmed 'text' field
+                    elif etype == "response.text.text":
+                        text = (event.get("text") or "").strip()
+                        if text:
+                            mt_partial_text = text
                             push_partial()
 
-                    # MT streaming (text mode): text + stash = current preview
-                    elif etype == "response.text.text":
-                        text = (event.get("text") or "")
-                        stash = (event.get("stash") or "")
-                        preview = (text + stash).strip()
-                        if preview:
-                            mt_partial_text = preview
+                    # MT streaming (audio+text mode): only use confirmed 'text' field
+                    elif etype == "response.audio_transcript.text":
+                        text = (event.get("text") or "").strip()
+                        if text:
+                            mt_partial_text = text
                             push_partial()
 
                     # MT final (audio+text mode): lock, reset partial

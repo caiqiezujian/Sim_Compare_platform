@@ -15,6 +15,18 @@
       "debug_root": ""
     }
   },
+  "external_services": [
+    {
+      "label": "通义千问同传",
+      "type": "qwen",
+      "api_key": "sk-33c1d03f05744da1bfb55e7aae3c6f28"
+    },
+    {
+      "label": "豆包同传",
+      "type": "doubao",
+      "api_key": ""
+    }
+  ],
   "storage": {
     "upload_dir": ""
   },

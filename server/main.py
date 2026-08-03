@@ -30,6 +30,7 @@ from .config import (
     save_config,
     service_config,
     storage_config,
+    external_services_config,
 )
 
 APP_DIR = Path(__file__).resolve().parent
@@ -352,13 +353,19 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             def run_side(side: str, endpoint: str, system: dict):
                 stype = (system.get("type") or "grpc").lower() if isinstance(system, dict) else "grpc"
                 if stype != "grpc":
-                    # External model API call (OpenAI/Gemini/Qwen/Doubao)
-                    # Get API key: from system dict (custom services) or config (slot services)
+                    # External model API call (Qwen/Doubao)
+                    # Get API key: from system dict → config slot → external_services
                     api_key = ""
                     if isinstance(system, dict):
                         api_key = str(system.get("api_key") or "").strip()
                     if not api_key:
                         api_key = str(service_config(side).get("api_key") or "").strip()
+                    if not api_key:
+                        # Look up in external_services by type
+                        for ext in external_services_config():
+                            if isinstance(ext, dict) and ext.get("type", "").lower() == stype:
+                                api_key = str(ext.get("api_key") or "").strip()
+                                break
                     if not api_key:
                         label = system.get("label") if isinstance(system, dict) else stype
                         msg = f"{stype.upper()}（{label or 'API'}）未配置 API Key，请在服务设置中填写"
@@ -508,10 +515,22 @@ async def get_config():
             "debug_log": item.get("debug_log") or item.get("debugLog") or "",
             "debug_root": item.get("debug_root") or item.get("debugRoot") or "",
         }
+    # External services (pre-configured models, API keys masked)
+    ext_services = []
+    for item in external_services_config():
+        if not isinstance(item, dict):
+            continue
+        ext_services.append({
+            "label": item.get("label") or "",
+            "type": item.get("type") or "",
+            "has_api_key": bool(item.get("api_key")),
+        })
+
     return {
         "config_loaded": config_loaded(),
         "config_path": config_path(),
         "services": services,
+        "external_services": ext_services,
         "runtime": runtime_config(),
         "storage": {
             "upload_dir_configured": bool(os.getenv("SIMCOMPARE_UPLOAD_DIR") or storage_config().get("upload_dir")),
@@ -521,7 +540,7 @@ async def get_config():
 
 # Known top-level keys we accept from the UI when persisting config.  Anything
 # else is rejected so the file never ends up with surprise fields.
-_ALLOWED_CONFIG_KEYS = {"services", "runtime", "storage"}
+_ALLOWED_CONFIG_KEYS = {"services", "runtime", "storage", "external_services"}
 
 
 def _coerce_service_entry(raw: Any, side: str = None) -> Dict[str, Any]:
@@ -589,6 +608,20 @@ async def update_config(payload: Dict[str, Any]):
         if not isinstance(storage, dict):
             return JSONResponse(status_code=400, content={"detail": "storage must be an object"})
         next_payload["storage"] = storage
+    if "external_services" in payload:
+        ext_raw = payload.get("external_services")
+        if not isinstance(ext_raw, list):
+            return JSONResponse(status_code=400, content={"detail": "external_services must be a list"})
+        ext_cleaned = []
+        for item in ext_raw:
+            if not isinstance(item, dict):
+                continue
+            ext_cleaned.append({
+                "label": str(item.get("label") or "").strip(),
+                "type": str(item.get("type") or "").strip().lower(),
+                "api_key": str(item.get("api_key") or "").strip(),
+            })
+        next_payload["external_services"] = ext_cleaned
 
     # Merge against the current in-memory config so callers can pass only the
     # keys they care about (the UI only knows about ``services``).  We strip

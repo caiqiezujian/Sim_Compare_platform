@@ -181,18 +181,37 @@ function App() {
         if (disposed || !config?.services) return
         setServerState('connected')
         const configured = [config.services.left, config.services.right]
-        setSystems(items => items.map((item, index) => {
-          const service = configured[index] || {}
-          return {
-            ...item,
-            label: service.label || item.label,
-            url: service.grpc_url || item.url,
-            type: service.type || 'grpc',
-            has_api_key: service.has_api_key || false,
-            debug_log: service.debug_log || '',
-            debug_root: service.debug_root || '',
-          }
-        }))
+        // Load slot services (gRPC) first, then append external services from config
+        setSystems(items => {
+          const slotSystems = items.map((item, index) => {
+            const service = configured[index] || {}
+            return {
+              ...item,
+              label: service.label || item.label,
+              url: service.grpc_url || item.url,
+              type: service.type || 'grpc',
+              has_api_key: service.has_api_key || false,
+              debug_log: service.debug_log || '',
+              debug_root: service.debug_root || '',
+            }
+          })
+          // Append pre-configured external services (Qwen/Doubao with API keys)
+          const extServices = (config.external_services || []).map((ext, i) => ({
+            id: `ext-${ext.type}-${i}`,
+            label: ext.label || ext.type,
+            name: ext.label || ext.type,
+            url: '',
+            type: ext.type,
+            has_api_key: ext.has_api_key || false,
+            language: 'zh → en',
+            color: ['amber', 'green', 'pink', 'teal'][i % 4],
+            enabled: true,
+          }))
+          // Avoid duplicates: only add external services not already in slotSystems
+          const existingTypes = slotSystems.filter(s => s.type && s.type !== 'grpc').map(s => s.type)
+          const newExt = extServices.filter(s => !existingTypes.includes(s.type))
+          return [...slotSystems, ...newExt]
+        })
       })
       .catch(() => setServerState('offline'))
     return () => { disposed = true }

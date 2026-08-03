@@ -1001,16 +1001,14 @@ function App() {
           </section>
         )}
         {activeRoute === 'evaluation' && (
-          <>
-          <section className="page-heading"><div><div className="eyebrow"><span>EVALUATION</span><span className="slash">/</span><span>QUALITY</span></div><h1>同传质量评估 <em>live</em></h1><p>实时查看 ASR 与翻译文本输出，后续将接入自动化质量指标。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
-
-          <section className="control-grid">
-            <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频，后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
-            <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const meta = serviceDisplay(system); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-input"><span>{system.label}{system.type && system.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[system.type] || system.type}` : ''}</span><input value={meta} readOnly onFocus={() => setSelectedSystem(system.id)} placeholder="未配置" spellCheck="false" /></label><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label></div></div>
+          <section className="placeholder-panel">
+            <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> EVALUATION</div><h2>同传翻译质量评估</h2></div></div>
+            <div className="placeholder-body">
+              <Gauge size={28} />
+              <strong>功能开发中</strong>
+              <p>这里将提供同传翻译结果的自动化质量评估指标（如 BLEU、字错率、延迟、流畅度等），敬请期待。</p>
+            </div>
           </section>
-
-          <BenchmarkPanel leftItems={leftItems} rightItems={rightItems} slotService={slotService} running={running} />
-          </>
         )}
       </main>
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}

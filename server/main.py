@@ -352,12 +352,45 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             def run_side(side: str, endpoint: str, system: dict):
                 stype = (system.get("type") or "grpc").lower() if isinstance(system, dict) else "grpc"
                 if stype != "grpc":
-                    label = system.get("label") if isinstance(system, dict) else ""
-                    msg = f"{stype.upper()}（{label or 'API'}）为 API 型服务，尚未接入调用适配器，暂不支持运行对比"
-                    rows = error_chunk(side, stype, msg)
-                    update_side(side, rows)
-                    run[f"{side}_error"] = msg
-                    return rows
+                    # External model API call (OpenAI/Gemini/Qwen/Doubao)
+                    # Get API key: from system dict (custom services) or config (slot services)
+                    api_key = ""
+                    if isinstance(system, dict):
+                        api_key = str(system.get("api_key") or "").strip()
+                    if not api_key:
+                        api_key = str(service_config(side).get("api_key") or "").strip()
+                    if not api_key:
+                        label = system.get("label") if isinstance(system, dict) else stype
+                        msg = f"{stype.upper()}（{label or 'API'}）未配置 API Key，请在服务设置中填写"
+                        rows = error_chunk(side, stype, msg)
+                        update_side(side, rows)
+                        run[f"{side}_error"] = msg
+                        return rows
+                    try:
+                        from .api_runner import run_api
+                        lang_to = "en" if lang == "zh" else "zh"
+                        return run_api(
+                            video_path,
+                            stype,
+                            api_key,
+                            lang,
+                            lang_to,
+                            conference_id=conference_id,
+                            on_update=lambda rows: update_side(side, rows),
+                            should_stop=should_stop,
+                            on_stream_start=mark_stream_started,
+                            on_audio_progress=lambda sent_ms, total_ms: update_audio_progress(side, sent_ms, total_ms),
+                        )
+                    except Exception as exc:
+                        logger.exception(
+                            "%s API (%s) failed conference_id=%s audio=%s",
+                            side, stype, conference_id, video_path,
+                        )
+                        message = f"{type(exc).__name__}: {exc}"
+                        rows = error_chunk(side, stype, message)
+                        update_side(side, rows)
+                        run[f"{side}_error"] = message
+                        return rows
                 try:
                     return run_grpc(
                         video_path,

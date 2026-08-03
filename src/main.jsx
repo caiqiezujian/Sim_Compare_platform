@@ -110,7 +110,7 @@ function App() {
   // "read-only" territory; now any sidebar service can be promoted into a
   // slot by clicking its A/B chip.
   const [slotA, setSlotA] = useState('system-a')
-  const [slotB, setSlotB] = useState('system-b')
+  const [slotB, setSlotB] = useState(null)
   const [direction, setDirection] = useState('zh2en')
   const [conferenceId, setConferenceId] = useState(`my_test_${Date.now()}`)
   const [video, setVideo] = useState(null)
@@ -551,22 +551,22 @@ function App() {
     notify('已删除自定义服务')
   }
 
-  // Toggle a service into / out of a compare slot.  Each side accepts exactly
-  // one service; clicking the same chip again clears the slot back to the
-  // default (system-a / system-b) so the user always has a working pair.
+  // Toggle a service into / out of a compare slot.  Clicking the same chip
+  // again clears the slot to empty (null) — user can run with just one side.
   const assignToSlot = (serviceId, slot) => {
     if (slot === 'A') {
-      setSlotA(current => current === serviceId ? 'system-a' : serviceId)
-      if (slotB === serviceId) setSlotB('system-b')
+      setSlotA(current => current === serviceId ? null : serviceId)
+      if (slotB === serviceId) setSlotB(null)
     } else {
-      setSlotB(current => current === serviceId ? 'system-b' : serviceId)
-      if (slotA === serviceId) setSlotA('system-a')
+      setSlotB(current => current === serviceId ? null : serviceId)
+      if (slotA === serviceId) setSlotA(null)
     }
   }
 
   const slotService = (slot) => {
     const id = slot === 'A' ? slotA : slotB
-    return systems.find(item => item.id === id) || systems[slot === 'A' ? 0 : 1]
+    if (!id) return null
+    return systems.find(item => item.id === id) || null
   }
 
   const cancelServerRun = async (runId) => {
@@ -624,11 +624,13 @@ function App() {
     try {
       const leftSystem = slotService('A')
       const rightSystem = slotService('B')
-      const enabled = [leftSystem, rightSystem].filter(system => system && system.enabled && (
-        (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
-      ))
+      // Build the systems array preserving side order; null slots are skipped
+      const enabled = [leftSystem, rightSystem]
+        .filter(system => system && system.enabled && (
+          (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
+        ))
       if (!enabled.length) {
-        notify('请至少配置一个服务（gRPC 地址或 API Key）')
+        notify('请至少选择一个服务分配到 A 或 B 槽位')
         if (mediaRef.current) {
           mediaRef.current.pause()
           mediaRef.current.currentTime = 0
@@ -649,7 +651,8 @@ function App() {
       await unlockSourceMediaPlayback()
       setLeftItems([])
       setRightItems([])
-      setSelectedSide('left')
+      // Select the side that has a service, so inspector defaults to it
+      setSelectedSide(leftSystem ? 'left' : 'right')
       const form = new FormData()
       if (uploadId) form.append('upload_id', uploadId)
       else form.append('video', video)

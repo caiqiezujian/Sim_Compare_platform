@@ -116,6 +116,11 @@ async def _run_qwen_async(
     mt_index = 0  # index of next MT segment to pair
     session_finished = False
     last_event_time = time.time()
+    # Streaming partial text (for real-time display)
+    current_asr_preview = ""
+    current_mt_preview = ""
+    current_asr_sn = 0  # next ASR segment index
+    current_mt_sn = 0   # next MT segment index
 
     def push_update():
         if on_update:
@@ -138,6 +143,23 @@ async def _run_qwen_async(
                 chunks.append(chunk)
             mt_index += 1
             push_update()
+
+    def push_partial():
+        """Push a partial chunk with streaming ASR/MT preview for real-time display."""
+        # Show the in-progress segment at the end of the chunks list
+        idx = max(len(source_segments), len(chunks))
+        asr_text = current_asr_preview or (source_segments[-1] if source_segments else "")
+        mt_text = current_mt_preview or (mt_segments[-1] if mt_segments else "")
+        if not asr_text and not mt_text:
+            return
+        chunk = _make_chunk(idx + 1, idx + 1, conference_id,
+                            int(idx * 2000), int((idx + 1) * 2000),
+                            asr_text, mt_text, [f"Qwen #{idx+1} (streaming)"])
+        if idx < len(chunks):
+            chunks[idx] = chunk
+        else:
+            chunks.append(chunk)
+        push_update()
 
     # Connect
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -184,7 +206,7 @@ async def _run_qwen_async(
 
         # Start receiver task
         async def receive_loop():
-            nonlocal session_finished, last_event_time
+            nonlocal session_finished, last_event_time, current_asr_preview, current_mt_preview
             try:
                 async for message in ws:
                     last_event_time = time.time()
@@ -194,25 +216,58 @@ async def _run_qwen_async(
                         continue
                     etype = event.get("type", "")
 
-                    # ASR completed
-                    if etype == "conversation.item.input_audio_transcription.completed":
+                    # ASR streaming partial (real-time preview)
+                    if etype == "conversation.item.input_audio_transcription.text":
+                        text = (event.get("text") or "")
+                        stash = (event.get("stash") or "")
+                        preview = (text + stash).strip()
+                        if preview:
+                            current_asr_preview = preview
+                            push_partial()
+
+                    # ASR completed (final for this segment)
+                    elif etype == "conversation.item.input_audio_transcription.completed":
                         transcript = (event.get("transcript") or "").strip()
                         if transcript:
                             source_segments.append(transcript)
+                            current_asr_preview = ""
                             try_pair()
 
-                    # MT (primary path)
+                    # MT streaming partial (real-time preview)
+                    elif etype == "response.audio_transcript.text":
+                        text = (event.get("text") or "")
+                        stash = (event.get("stash") or "")
+                        preview = (text + stash).strip()
+                        if preview:
+                            current_mt_preview = preview
+                            push_partial()
+                    elif etype == "response.audio_transcript.delta":
+                        delta = (event.get("delta") or "").strip()
+                        if delta:
+                            current_mt_preview += delta
+                            push_partial()
+
+                    # MT completed (primary path)
                     elif etype == "response.audio_transcript.done":
                         text = (event.get("transcript") or event.get("text") or "").strip()
                         if text:
                             mt_segments.append(text)
+                            current_mt_preview = ""
                             try_pair()
 
-                    # MT (fallback path)
+                    # MT streaming delta (fallback text path)
+                    elif etype == "response.text.delta":
+                        delta = (event.get("delta") or "").strip()
+                        if delta:
+                            current_mt_preview += delta
+                            push_partial()
+
+                    # MT completed (fallback path)
                     elif etype == "response.text.done":
                         text = (event.get("text") or "").strip()
                         if text:
                             mt_segments.append(text)
+                            current_mt_preview = ""
                             try_pair()
 
                     elif etype == "session.finished":

@@ -180,6 +180,27 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .route-item.active { color: var(--text); background: var(--cyan-soft); border-color: var(--cyan); }
 .route-item.active svg { color: var(--cyan); }
 
+/* ============ View tabs ============ */
+.view-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.view-tab {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.view-tab:hover { color: var(--text-2); }
+.view-tab.active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+}
+
 /* ============ Benchmark panel ============ */
 .benchmark-panel { display: flex; flex-direction: column; gap: 12px; }
 .benchmark-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

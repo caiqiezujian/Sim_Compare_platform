@@ -317,7 +317,18 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
         if systems:
             from .grpc_runner import run_grpc
             lang = "en" if direction == "en2zh" else "zh"
-            active_sides = ["left", "right"] if len(systems) > 1 else ["left"]
+            # Map systems to sides by _side tag (frontend tells us which slot each system belongs to)
+            side_map = {}
+            for sys in systems:
+                if isinstance(sys, dict):
+                    s = sys.get("_side") or ""
+                    if s in ("left", "right"):
+                        side_map[s] = sys
+            # Fallback: if no _side tags, assign by order (left first, right second)
+            if not side_map:
+                for i, sys in enumerate(systems[:2]):
+                    side_map["left" if i == 0 else "right"] = sys
+            active_sides = list(side_map.keys())
             run["stage"] = "starting"
             run["progress"] = 1
 
@@ -425,22 +436,16 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                     run[f"{side}_error"] = message
                     return rows
 
-            left_task = asyncio.to_thread(
-                run_side,
-                "left",
-                system_endpoint(systems[0]),
-                systems[0] if systems else {},
-            )
-            right_task = asyncio.to_thread(
-                run_side,
-                "right",
-                system_endpoint(systems[1]),
-                systems[1] if len(systems) > 1 else {},
-            ) if len(systems) > 1 else None
-            if right_task:
-                left, right = await asyncio.gather(left_task, right_task)
-            else:
-                left, right = await left_task, []
+            tasks = []
+            if "left" in side_map:
+                tasks.append(asyncio.to_thread(run_side, "left", system_endpoint(side_map["left"]), side_map["left"]))
+            if "right" in side_map:
+                tasks.append(asyncio.to_thread(run_side, "right", system_endpoint(side_map["right"]), side_map["right"]))
+
+            results = await asyncio.gather(*tasks) if tasks else []
+            # Map results back to sides
+            left = results[0] if "left" in side_map else []
+            right = results[1] if "right" in side_map and len(results) > 1 else results[0] if "right" in side_map and len(results) == 1 else []
             if should_stop():
                 run["status"] = "cancelled"
                 run["stage"] = "cancelled"

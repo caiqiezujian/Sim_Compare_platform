@@ -624,11 +624,14 @@ function App() {
     try {
       const leftSystem = slotService('A')
       const rightSystem = slotService('B')
-      // Build the systems array preserving side order; null slots are skipped
-      const enabled = [leftSystem, rightSystem]
-        .filter(system => system && system.enabled && (
-          (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
-        ))
+      // Tag each system with its side so backend knows which slot it belongs to
+      const candidates = [
+        leftSystem ? { ...leftSystem, _side: 'left' } : null,
+        rightSystem ? { ...rightSystem, _side: 'right' } : null,
+      ]
+      const enabled = candidates.filter(system => system && system.enabled && (
+        (system.type || 'grpc') === 'grpc' ? system.url.trim() : (system.api_key || system.has_api_key)
+      ))
       if (!enabled.length) {
         notify('请至少选择一个服务分配到 A 或 B 槽位')
         if (mediaRef.current) {

@@ -25,6 +25,16 @@
       "label": "Doubao同传",
       "type": "doubao",
       "api_key": "4d396124-e651-441d-839f-056d585dfbfb"
+    },
+    {
+      "label": "OpenAI同传",
+      "type": "openai",
+      "api_key": ""
+    },
+    {
+      "label": "Gemini同传",
+      "type": "gemini",
+      "api_key": ""
     }
   ],
   "storage": {

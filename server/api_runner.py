@@ -159,11 +159,16 @@ def _run_qwen_sync(
             prev_end = asr_mt_end[i - 1] if i > 0 else 0
             this_end = asr_mt_end[i]
             mt_text = "".join(d for _, d in mt_segs[prev_end:this_end])
+            # end = last MT seg time (or asr_ms if no MT paired)
+            if this_end > prev_end and mt_segs:
+                end_ms = mt_segs[this_end - 1][0] if this_end > 0 else asr_ms
+            else:
+                end_ms = asr_ms
             logs = [f"Qwen #{i+1}", f"ASR delta | sent={asr_ms}ms"]
             if this_end > prev_end:
                 logs.append(f"MT segs {prev_end}..{this_end} | sent={mt_segs[prev_end][0]}ms")
             new_chunks.append(_make_chunk(i + 1, i + 1, conference_id,
-                                          asr_ms, asr_ms,
+                                          asr_ms, end_ms,
                                           asr_delta, mt_text, logs))
         # Streaming chunk: un-flushed ASR delta + pending MT deltas
         asr_live = ""
@@ -1028,11 +1033,15 @@ def _run_openai(
             prev_end = asr_mt_end[i - 1] if i > 0 else 0
             this_end = asr_mt_end[i]
             mt_text = "".join(d for _, d in mt_segs[prev_end:this_end])
+            if this_end > prev_end and mt_segs:
+                end_ms = mt_segs[this_end - 1][0] if this_end > 0 else asr_ms
+            else:
+                end_ms = asr_ms
             logs = [f"OpenAI #{i+1}", f"ASR delta | sent={asr_ms}ms"]
             if this_end > prev_end:
                 logs.append(f"MT segs {prev_end}..{this_end}")
             new_chunks.append(_make_chunk(i + 1, i + 1, conference_id,
-                                          asr_ms, asr_ms,
+                                          asr_ms, end_ms,
                                           asr_delta, mt_text, logs))
         # Streaming chunk
         if asr_delta_buffer.strip() or mt_delta_buffer.strip():
@@ -1265,8 +1274,18 @@ def _run_openai(
 
     threading.Thread(target=watchdog, daemon=True).start()
 
+    # Proxy support — OpenAI requires proxy in China
+    proxy_host = os.environ.get("HTTP_PROXY_HOST", "127.0.0.1")
+    proxy_port = int(os.environ.get("HTTP_PROXY_PORT", "7897"))
     sslopt = {"cert_reqs": ssl.CERT_NONE}
-    ws.run_forever(sslopt=sslopt, ping_interval=20, ping_timeout=10)
+    ws.run_forever(
+        sslopt=sslopt,
+        http_proxy_host=proxy_host,
+        http_proxy_port=proxy_port,
+        proxy_type="http",
+        ping_interval=20,
+        ping_timeout=10,
+    )
 
     # Final rebuild
     with lock:
@@ -1369,11 +1388,15 @@ def _run_gemini(
             prev_end = asr_mt_end[i - 1] if i > 0 else 0
             this_end = asr_mt_end[i]
             mt_text = "".join(d for _, d in mt_segs[prev_end:this_end])
+            if this_end > prev_end and mt_segs:
+                end_ms = mt_segs[this_end - 1][0] if this_end > 0 else asr_ms
+            else:
+                end_ms = asr_ms
             logs = [f"Gemini #{i+1}", f"ASR delta | sent={asr_ms}ms"]
             if this_end > prev_end:
                 logs.append(f"MT segs {prev_end}..{this_end}")
             new_chunks.append(_make_chunk(i + 1, i + 1, conference_id,
-                                          asr_ms, asr_ms,
+                                          asr_ms, end_ms,
                                           asr_delta, mt_text, logs))
         # Streaming chunk
         if asr_current_text and asr_current_text != prev_asr_text:

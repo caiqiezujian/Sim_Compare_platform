@@ -1,9 +1,10 @@
 {
   "services": {
     "left": {
-      "label": "线上稳定版",
-      "type": "grpc",
-      "grpc_url": "10.185.1.71:16552",
+      "label": "OpenAI同传",
+      "type": "openai",
+      "grpc_url": "",
+      "api_key": "k-proj-Sn8dUOolMdkhKtIKlACchgUgEAm-SKVWxzuSePjnoLjXblteWSVoHKCCy9VVSEISti22fAM7OgT3BlbkFJ3wkfhV65aWCHq1eMfR8lMmdxZq4k7wD4QDhiBVeDb4WKPTdI4TW1HYQl5wAMYHh-pL0S6A4AQA",
       "debug_log": "",
       "debug_root": ""
     },

@@ -18,17 +18,22 @@ Segmentation:
   - ASR is the anchor — each ASR segment pairs with all MT deltas accumulated
     since the previous ASR segment (same as Qwen probe2)
 
+Output:
+  - All terminal output is simultaneously saved to scripts/openai_probe_output.txt
+  - Overwritten each run
+
 Usage:
     python scripts/openai_probe.py --audio test.wav --lang zh --lang-to en
-    python scripts/openai_probe.py --audio test.wav --lang en --lang-to zh
+    python scripts/openai_probe.py --audio test.wav --lang en --lang-to zh --api-key sk-...
 
 Environment:
     Set OPENAI_API_KEY or pass --api-key
-    Proxy: set HTTP_PROXY / HTTPS_PROXY or pass --proxy
+    Proxy: set HTTP_PROXY / HTTPS_PROXY (default http://127.0.0.1:7897)
 """
 import argparse
 import base64
 import json
+import math
 import os
 import ssl
 import subprocess
@@ -36,11 +41,43 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
 import websocket
 
+# ─── Tee logger: write to both stdout and file ───
+SCRIPT_DIR = Path(__file__).parent.resolve()
+LOG_PATH = SCRIPT_DIR / "openai_probe_output.txt"
+
+class TeeLogger:
+    """Redirect stdout/stderr to both console and a log file."""
+    def __init__(self, log_path):
+        self.log_path = log_path
+        self.log_file = open(log_path, "w", encoding="utf-8")
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        sys.stdout = self
+        sys.stderr = self
+
+    def write(self, data):
+        self.stdout.write(data)
+        self.log_file.write(data)
+        self.log_file.flush()
+
+    def flush(self):
+        self.stdout.flush()
+        self.log_file.flush()
+
+    def close(self):
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
+        self.log_file.close()
+
+    def isatty(self):
+        return False
+
+
 # ─── Defaults ───
-DEFAULT_API_KEY = ""
 API_URL = "wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate"
 SAFETY_IDENTIFIER = "simcompare-openai-probe"
 
@@ -55,11 +92,12 @@ POST_AUDIO_WAIT_SECONDS = 2.0
 DRAIN_TIMEOUT_SECONDS = 30.0
 DRAIN_IDLE_SECONDS = 10.0
 
+PROXY_HOST = os.environ.get("HTTP_PROXY_HOST", "127.0.0.1")
+PROXY_PORT = int(os.environ.get("HTTP_PROXY_PORT", "7897"))
+
 
 def get_api_key():
     key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not key:
-        key = DEFAULT_API_KEY
     if not key:
         raise RuntimeError(
             "No OPENAI_API_KEY found.\n"
@@ -73,11 +111,9 @@ def read_pcm_24k(path):
     """Convert any audio to 24kHz/mono/16-bit PCM."""
     import wave
     if path.lower().endswith((".wav", ".wave")):
-        # Check sample rate first
         with wave.open(path, "rb") as r:
             if r.getframerate() == SAMPLE_RATE and r.getnchannels() == 1 and r.getsampwidth() == 2:
                 return r.readframes(r.getnframes())
-    # Re-encode via ffmpeg
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
     subprocess.run(
         ["ffmpeg", "-y", "-i", path, "-ac", "1", "-ar", str(SAMPLE_RATE),
@@ -120,26 +156,26 @@ def extract_text(event):
 start_time = time.time()
 current_sent_ms = 0
 
-# Delta accumulation state
 asr_delta_buffer = ""
 mt_delta_buffer = ""
 asr_last_sec = -1
 mt_last_sec = -1
 
-# Locked segments: (sent_ms, text)
 asr_segs = []
 mt_segs = []
-asr_mt_end = []  # asr_mt_end[i] = len(mt_segs) when ASR seg #i locked
+asr_mt_end = []
 
 session_finished = False
 last_event_time = time.time()
 
-# Event stats
 event_counts = {}
 asr_delta_count = 0
 mt_delta_count = 0
 asr_done_count = 0
 mt_done_count = 0
+
+first_asr_time = None
+first_mt_time = None
 
 
 def flush_asr_delta():
@@ -160,10 +196,8 @@ def flush_mt_delta():
 
 
 def on_open(ws):
-    api_key = get_api_key()
     print("[probe] connected OK!")
 
-    # session.update
     session_update = {
         "type": "session.update",
         "session": {
@@ -183,16 +217,10 @@ def on_open(ws):
     print(f"[send] session.update: {json.dumps(session_update, ensure_ascii=False)}")
     ws.send(json.dumps(session_update, ensure_ascii=False))
 
-    # Start sending audio
     def send_audio():
         global current_sent_ms, start_time
         time.sleep(0.5)
         start_time = time.time()
-
-        print(f"[probe] audio: {AUDIO_PATH}")
-        print(f"[probe] duration: {TOTAL_MS}ms  chunks: {TOTAL_CHUNKS} ({CHUNK_MS}ms each)")
-        print(f"[probe] lang={SOURCE_LANG} -> {TARGET_LANGUAGE}")
-        print(f"[probe] sample_rate={SAMPLE_RATE}Hz  chunk_bytes={CHUNK_BYTES}")
 
         for idx in range(TOTAL_CHUNKS):
             if session_finished:
@@ -231,18 +259,15 @@ def on_open(ws):
                 break
             time.sleep(CHUNK_MS / 1000.0)
 
-        # Wait for last events
         print(f"[send] audio done, waiting {POST_AUDIO_WAIT_SECONDS}s before close...")
         time.sleep(POST_AUDIO_WAIT_SECONDS)
 
-        # session.close
         try:
             ws.send(json.dumps({"type": "session.close"}))
             print("[send] session.close sent")
         except Exception:
             pass
 
-        # Wait for session.closed
         deadline = time.time() + DRAIN_TIMEOUT_SECONDS
         while time.time() < deadline:
             if session_finished:
@@ -264,6 +289,7 @@ def on_message(ws, message):
     global asr_delta_buffer, asr_last_sec, mt_delta_buffer, mt_last_sec
     global session_finished, last_event_time, current_sent_ms
     global asr_delta_count, mt_delta_count, asr_done_count, mt_done_count
+    global first_asr_time, first_mt_time
 
     if isinstance(message, bytes):
         return
@@ -284,6 +310,9 @@ def on_message(ws, message):
         text = extract_text(event)
         if text:
             asr_delta_count += 1
+            if first_asr_time is None:
+                first_asr_time = time.time() - start_time
+                print(f"[probe] *** FIRST ASR at {first_asr_time:.1f}s ***")
             if asr_last_sec != -1 and sec != asr_last_sec:
                 flush_asr_delta()
             asr_last_sec = sec
@@ -305,6 +334,9 @@ def on_message(ws, message):
         text = extract_text(event)
         if text:
             mt_delta_count += 1
+            if first_mt_time is None:
+                first_mt_time = time.time() - start_time
+                print(f"[probe] *** FIRST MT at {first_mt_time:.1f}s ***")
             if mt_last_sec != -1 and sec != mt_last_sec:
                 flush_mt_delta()
             mt_last_sec = sec
@@ -332,7 +364,6 @@ def on_message(ws, message):
     elif etype == "session.updated":
         print(f"[recv {time.time()-start_time:.1f}s] session.updated")
 
-    # Skip noisy events
     elif etype in {
         "input_audio_buffer.speech_started", "input_audio_buffer.speech_stopped",
         "input_audio_buffer.committed",
@@ -361,6 +392,13 @@ def print_timeline():
     print(f"\nEvent counts: {json.dumps(event_counts, indent=2)}")
     print(f"ASR delta events: {asr_delta_count}, done events: {asr_done_count}")
     print(f"MT  delta events: {mt_delta_count}, done events: {mt_done_count}")
+    if first_asr_time:
+        print(f"First ASR text at: {first_asr_time:.1f}s")
+    if first_mt_time:
+        print(f"First MT  text at: {first_mt_time:.1f}s")
+    if first_asr_time and first_mt_time:
+        delay = first_mt_time - first_asr_time
+        print(f"MT started {'before' if delay < 0 else 'after'} ASR by {abs(delay):.1f}s")
 
     print(f"\nASR segments: {len(asr_segs)}")
     for i, (ms, delta) in enumerate(asr_segs):
@@ -375,15 +413,13 @@ def print_timeline():
     print("TIMELINE PAIRING (ASR + MT by segment index)")
     print("-" * 80)
     max_segs = max(len(asr_segs), len(mt_segs))
-    print(f"{'#':>4}  {'ASR time':>8}  {'MT time':>8}  {'ASR delta':<40}  {'MT delta'}")
+    print(f"{'#':>4}  {'ASR time':>8}  {'MT range':>10}  {'ASR delta':<40}  {'MT delta'}")
     for i in range(max_segs):
         asr_ms, asr_delta = asr_segs[i] if i < len(asr_segs) else ("", "")
-        # MT for this ASR segment = mt_segs[asr_mt_end[i-1] : asr_mt_end[i]]
         prev_end = asr_mt_end[i - 1] if i > 0 and i - 1 < len(asr_mt_end) else 0
         this_end = asr_mt_end[i] if i < len(asr_mt_end) else len(mt_segs)
         mt_text = "".join(d for _, d in mt_segs[prev_end:this_end])
         if not mt_text and i >= len(asr_segs):
-            # No ASR for this index, just show MT
             mt_ms, mt_delta = mt_segs[i] if i < len(mt_segs) else ("", "")
             mt_text = mt_delta
             asr_ms = ""
@@ -429,7 +465,6 @@ def main():
         print(f"ERROR: file not found: {args.audio}")
         sys.exit(1)
 
-    # Set API key
     if args.api_key:
         os.environ["OPENAI_API_KEY"] = args.api_key
 
@@ -442,24 +477,22 @@ def main():
     print(f"[probe] lang={SOURCE_LANG} -> {TARGET_LANGUAGE}")
     print(f"[probe] sample_rate={SAMPLE_RATE}Hz  chunk_ms={CHUNK_MS}")
 
-    # Convert audio to 24kHz PCM
     print("[probe] converting audio to 24kHz PCM...")
     PCM_DATA = read_pcm_24k(AUDIO_PATH)
     TOTAL_MS = int(len(PCM_DATA) / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
-    TOTAL_CHUNKS = math.ceil(len(PCM_DATA) / CHUNK_BYTES) if False else (len(PCM_DATA) + CHUNK_BYTES - 1) // CHUNK_BYTES
+    TOTAL_CHUNKS = (len(PCM_DATA) + CHUNK_BYTES - 1) // CHUNK_BYTES
 
     print(f"[probe] duration: {TOTAL_MS}ms  chunks: {TOTAL_CHUNKS}")
 
-    # Proxy
-    proxy = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY") or os.environ.get("http_proxy") or os.environ.get("https_proxy")
+    proxy = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
     if proxy:
-        print(f"[probe] using proxy: {proxy}")
-    else:
-        print("[probe] no proxy set (set HTTP_PROXY if needed)")
+        print(f"[probe] using proxy env: {proxy}")
+    print(f"[probe] ws proxy: {PROXY_HOST}:{PROXY_PORT}")
 
     api_key = get_api_key()
     print(f"[probe] API key: {api_key[:6]}...{api_key[-4:]}")
     print(f"[probe] connecting to {API_URL[:60]}...")
+    print(f"[probe] log file: {LOG_PATH}")
 
     ws = websocket.WebSocketApp(
         API_URL,
@@ -476,16 +509,17 @@ def main():
     sslopt = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
     ws.run_forever(
         sslopt=sslopt,
-        http_proxy_host="127.0.0.1",
-        http_proxy_port=7897,
+        http_proxy_host=PROXY_HOST,
+        http_proxy_port=PROXY_PORT,
         proxy_type="http",
         ping_interval=20,
         ping_timeout=10,
     )
 
 
-# Need math for ceil
-import math
-
 if __name__ == "__main__":
-    main()
+    tee = TeeLogger(LOG_PATH)
+    try:
+        main()
+    finally:
+        tee.close()

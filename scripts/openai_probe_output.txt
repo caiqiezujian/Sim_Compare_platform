@@ -1,0 +1,789 @@
+[probe] OpenAI GPT-Realtime-Translate probe
+[probe] audio: D:\Sim_Compare_platform\scripts\zh2en-01-tech_001.wav
+[probe] lang=zh -> en
+[probe] sample_rate=24000Hz  chunk_ms=200
+[probe] converting audio to 24kHz PCM...
+[probe] duration: 61209ms  chunks: 307
+[probe] ws proxy: 127.0.0.1:7897
+[probe] API key: sk-pro...4AQA
+[probe] connecting to wss://api.openai.com/v1/realtime/translations?model=gpt-real...
+[probe] log file: D:\Sim_Compare_platform\scripts\openai_probe_output.txt
+[probe] connected OK!
+[send] session.update: {"type": "session.update", "session": {"audio": {"input": {"transcription": {"model": "gpt-realtime-whisper"}, "noise_reduction": null}, "output": {"language": "en"}}}}
+[recv 1.8s] session.created
+[recv 2.0s] session.updated
+[send] chunk 1/307  sent=200ms
+[send] chunk 2/307  sent=400ms
+[send] chunk 3/307  sent=600ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PHDFWggzZ2kEisiKib", "delta": "DgAOAA4ADgAOAA4ADgAPAA8ADwAPAA8ADwAPAA8AEAAQABAAEAAQABEAEAARABEAEQARABIAEgASABIAEgARABIAEgARABIAEgASABIAEgAS
+[probe] *** FIRST MT at 0.7s ***
+[recv 0.7s] MT delta: 'First'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PHo8IRzz4rSOnVIesh", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #1] t=1s  delta='First'
+[recv 1.1s] MT delta: ','[probe] *** FIRST ASR at 1.1s ***
+[recv 1.1s] ASR delta: ' 首'
+[recv 1.1s] ASR delta: '先'
+[recv 1.3s] MT delta: " here's"[recv 1.3s] ASR delta: '是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PIBcUn1r03rjCuynYY", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 1.5s] MT delta: ' what'[recv 1.5s] ASR delta: '这样'
+[recv 1.7s] MT delta: ' I'[recv 1.7s] MT delta: ' mean'[recv 1.8s] ASR delta: '哈'
+[recv 1.8s] ASR delta: '，就是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PIymhsKTddOk5cf6tl", "delta": "dQDSAXsAVv/A/y0AIQCWAPAAqf+q/lIAvgEhAKH+DwBlAen/cP6D/8AAYABeACkBggAp/9v/ngGiAc7/L/6Y/usAYAKHATMAev/j/hD/2wDL
+  [MT  SEG #2] t=2s  delta=", here's what I mean"
+[recv 2.1s] MT delta: ':'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PJGagF00TearM0PtXf", "delta": "kvT+9Uv4Efsn/kcB6QOCBdcF6wToApgAIP/l/qT/9wBgAmsD8QNfBAoF0wVJBvgF3wRdA/4BRQFXAcgBJAJ6AvkCggM6BDAFOQY1BzcIHAmM
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PJNhMXEBqWAzGZ2zkX", "delta": "lAimCMgI/whICY4JwAnhCRQKVwqbCtIKDgtqC9ALIAxWDH8MwgwgDW4NYw3BDIYLGwoHCYIIagiUCM8I2giSCAcIQwdcBl8FOwT4AtgBNAEM
+  [ASR SEG #1] t=2s  delta=' 首先是这样哈，就是'
+[recv 2.8s] ASR delta: '我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PKLFt0mGpq7FCTa8wz", "delta": "/P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PKjs700YTL764qhtcJ", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PKKiDpWS9DIWL4XKdf", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PLJSxbb9p8C1rFcM4O", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #2] t=4s  delta='我'
+[recv 4.4s] ASR delta: '我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PL4AT9TCzLBV0I6J2X", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 4.7s] ASR delta: '觉得'
+[recv 4.9s] ASR delta: '我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PMnZw8GIeWezOcN97C", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #3] t=5s  delta='我觉得我'
+[recv 5.1s] ASR delta: '做'
+[send] chunk 26/307  sent=5200ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PMhQRsq5smC29ddV9p", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 5.5s] ASR delta: '到了'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PMqh0kLuN1vPctXEfe", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #4] t=6s  delta='做到了'
+[recv 6.1s] ASR delta: '比如'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PN5kfRIUDsei0tyLFQ", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 6.3s] ASR delta: '说'
+[recv 6.5s] ASR delta: '按'
+  [MT  SEG #3] t=6s  delta=':'
+[recv 6.8s] MT delta: ' I'[recv 6.8s] ASR delta: '一个'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PNZ95G97N7tNuSiGp1", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #4] t=7s  delta=' I'
+[recv 7.0s] MT delta: ' think'  [ASR SEG #5] t=7s  delta='比如说按一个'
+[recv 7.0s] ASR delta: '分'
+[recv 7.1s] ASR delta: '数'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97POac9UyhGpCgooLa79", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 7.3s] MT delta: ' I'[recv 7.3s] MT delta: '’ve'[recv 7.3s] ASR delta: '来'
+[recv 7.5s] MT delta: ' been'[recv 7.5s] MT delta: ' able'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97POyWhDXP61yt1CSmzQ", "delta": "IwEAAaUARQAVABsAOwBiAIYAmQCTAHwAYgBCABkA7v/A/5L/d/+B/6f/zv/h/+X/6/8EADwAfgCuAMIAxwDNAN4A+gAuAYwBGgLRApkDVgT1
+[recv 7.9s] MT delta: ' to'[recv 7.9s] MT delta: ' do'[recv 7.9s] ASR delta: '评'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97POF4RNxMjBQra7IviT", "delta": "oATzBVgFQgPQ/1D7h/am8pXwcfC58cbzNvYJ+Xz8ygDCBaoKmw7FEI0QUw5MC34IhAaLBXwFVwbjB1sJHArACfUH3QS6AOr7Jfci80fw6+5E
+  [ASR SEG #6] t=8s  delta='分数来评'
+[recv 8.1s] ASR delta: '的话'
+[recv 8.1s] ASR delta: '，我'
+  [MT  SEG #5] t=8s  delta=' think I’ve been able to do'
+[recv 8.2s] MT delta: ' it'[recv 8.2s] MT delta: ' that'[recv 8.3s] MT delta: ' way'[recv 8.3s] ASR delta: '可能'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PPUnsdVXZQwQP26Hyr", "delta": "n/t9+sH51/ll+pH6Dfpa+Rz5ofmo+nz7evuh+qT5Qfl1+ar5j/mG+Sf6g/vm/FH9VvyM+iL5Mvnl+jn9xP7r/ib+RP3R/Pr8h/0W/ln+If6J
+[recv 8.5s] MT delta: ','[recv 8.7s] ASR delta: '做'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PP8TQTNV2jzYUpadrp", "delta": "aPIo8uLxzfEV8qfygvOr9Pb1JfcX+Lz4M/nD+YX6U/v9+3j8z/wT/UD9ZP2p/Rf+m/5J/zUAJAHVAVUCswLXAsgCtAKXAl8CCAKOAeYAKwBx
+[recv 8.9s] MT delta: ' and'[recv 8.9s] ASR delta: '到了'
+  [MT  SEG #6] t=9s  delta=' it that way, and'
+[recv 9.1s] MT delta: ' if'[recv 9.1s] MT delta: ' I'  [ASR SEG #7] t=9s  delta='的话，我可能做到了'
+[recv 9.1s] ASR delta: '七'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PQgKP4M85WeZXDrrwg", "delta": "/f69/qn+sv7F/tv+/P41/5X/EgCfACIBjwHjASsCawKcArcCwwLHAswC1gLmAvMC7gLMApcCXwIvAgoC5QGyAWMB+ACDACQA5P+w/3b/Qf8o
+[recv 9.3s] MT delta: ' rate'[recv 9.3s] ASR delta: '十分'
+[recv 9.5s] MT delta: ' it'[recv 9.5s] MT delta: ' on'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PQmZDYwLv35dc7Nn6a", "delta": "+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7//v/+//7
+[recv 9.7s] MT delta: ' a'[recv 9.7s] MT delta: ' scale'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PQcRUnHAQGT6nx0UvN", "delta": "u/1M/oL+Qf63/VP9Zv0B/gr/AwC0ACYBXgFxAYEBpAHSAfEB/AENAjgCZwKMAsAC6wIHA0kDvQNPBOsEOgX9BDUEDAPoAVMBjwGaAjoEOgal
+[recv 10.0s] ASR delta: '。但是'
+  [MT  SEG #7] t=10s  delta=' if I rate it on a scale'
+[recv 10.2s] MT delta: ' of'[recv 10.2s] MT delta: ' a'[recv 10.2s] MT delta: ' hundred'  [ASR SEG #8] t=10s  delta='七十分。但是'
+[recv 10.2s] ASR delta: '我'
+[send] chunk 51/307  sent=10200ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PRM2znNUoF0UhLeuOC", "delta": "D//1/4kAvgCfAEIA1P+A/1T/Tf9c/3f/jv+h/8T/AABHAIUArQC0AI0AMACo/xD/jv5H/k3+l/4N/43/AQBsANcAQwGyATECwgJLA7ED4APV
+[recv 10.6s] MT delta: ','[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PR7z2ewhibNgvEn5VN", "delta": "mPew9Uv0ifNh86zz/fPy86vzqvMj9Lf0/vTp9LL0fPRQ9F70vvRa9Rb2+PYO+F/5zvo4/In91v5DAMAB5QJnA2ADCwOWAisCzwFTAWwA7v4o
+[recv 10.8s] ASR delta: '不知道'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PSMYphZNuGmKXbpuO6", "delta": "if3M/QP+I/4q/hT+6P27/aD9kf1+/V/9Of0S/fP85vzu/Az9Nv1g/YD9jv2D/WP9PP0g/RD9Bv0C/Q39MP1w/cz9Nf6Z/un+FP8c/xr/I/83
+  [MT  SEG #8] t=11s  delta=' of a hundred,'
+[recv 11.4s] MT delta: ' I'[recv 11.4s] MT delta: '’d'[recv 11.6s] MT delta: ' say'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PSPItcs4cTBTUgvXmh", "delta": "BwAHAAcABwAHAAcABwAHAAcABwAHAAcABwAHAAcABwAHAAcABwAHAAcABwAIAAgABwAHAAgABwAHAAcABwAHAAcACAAIAAcABwAHAAcABwAH
+[recv 11.8s] MT delta: ' I'[recv 11.8s] MT delta: '’m'[recv 12.0s] MT delta: ' at'[recv 12.0s] MT delta: ' seventy'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PT5Nf47zGdEt3L9flN", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #9] t=12s  delta=' I’d say I’m at seventy'
+[recv 12.4s] MT delta: '.'  [ASR SEG #9] t=12s  delta='我不知道'
+[recv 12.4s] ASR delta: '，'
+[recv 12.4s] ASR delta: '人'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PTChZE5iB6efiivOO6", "delta": "QiWFIKgZUhOQEYcVwxp2HJ4biBvKG5AaQhm4GLcV7Q5VCfMIFArVBmUAt/xx/r0CAga/BjcE9v7o+cb3H/c39Ujzt/T/+BX8gfx9/M39lP9Z
+[recv 12.6s] ASR delta: '能'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PTEkPXM3Z5yaj2AkXt", "delta": "wgA3/+z+vAGlACL8K/46BOgCVv3j/TMCeQLc/rz9ogDGAeb+iP3dADYDEABq/Z0A4AOmAID8S/9OA5YA+/yB/1gCQwCC/kQA8wBM/wD/ZgAG
+[recv 12.9s] ASR delta: '做到'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PU9DLdPYKRM5B9m5P9", "delta": "1P/u//L/5P/V/83/yf/L/9P/2v/Y/9H/0v/c/+v//P8BAPn/5//a/9P/zv/Q/9z/7f/9/wUABAD5/+T/1P/R/9X/1//X/+D/6v/q/9z/1//g
+  [ASR SEG #10] t=13s  delta='，人能做到'
+[recv 13.4s] ASR delta: '多少'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PUiYw6XDETFAa3WJcB", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 13.8s] ASR delta: '分'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PVubmho0VWlH9d5ZUC", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 14.1s] ASR delta: '。'
+[recv 14.1s] ASR delta: '对'
+  [MT  SEG #10] t=14s  delta='.'
+[recv 14.2s] MT delta: ' But'  [ASR SEG #11] t=14s  delta='多少分。对'
+[recv 14.3s] ASR delta: '对'
+[recv 14.5s] MT delta: ' I'[recv 14.5s] MT delta: ' don'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PVYFiEtMkLlY7P37L5", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 14.7s] MT delta: '’t'[recv 14.7s] MT delta: ' know'[recv 14.7s] ASR delta: '，那'
+[recv 14.9s] MT delta: ' how'[recv 14.9s] ASR delta: '那'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PVSWl9cB06QhSJvfL6", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 15.1s] MT delta: ' high'  [MT  SEG #11] t=15s  delta=' But I don’t know how high'
+[recv 15.3s] MT delta: ' humans'  [ASR SEG #12] t=15s  delta='对，那那'
+[recv 15.3s] ASR delta: '八'
+[send] chunk 76/307  sent=15200ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PW4D45WnVxO5uxTsPh", "delta": "if9c/wn/of5O/hj+3v2U/T79zvxI/Mf7W/sG+8/6xPrC+o/6JPqg+TD5/vgG+Sf5JfnO+EH4x/eo99X3JPhS+Ez4JPjf95P3Z/ee9yP4mfix
+[recv 15.5s] ASR delta: '十分'
+[recv 15.7s] MT delta: ' can'[recv 15.7s] MT delta: ' go'[recv 15.7s] ASR delta: '肯'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PWOkSEYo2AnkwVkGrw", "delta": "gAG5/RT6xfb589bxoPCl8BzyyvRl+Kf8RgHnBfEJ7wyfDsAOFQ3KCXgFnAB9+3z2D/J77gvsDeuW62vtH/Br80D3WvsK/4oBfgIRAsUAPf+2
+[recv 15.9s] ASR delta: '定'
+[recv 16.1s] MT delta: '—'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PXHUUYRHTdQdD63oO3", "delta": "BfDu7s7t+ezV7FHtOe6A7xPxePIT877yEvK78cjxL/Iv87n0OvaC97/4uvng+TH5c/g7+IX4M/kH+t/6gfuk+6v75Pvp+1T7U/o9+T747fd9
+  [ASR SEG #13] t=16s  delta='八十分肯定'
+[recv 16.3s] ASR delta: '有'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PX1w4cSuz2tiP1X7x8", "delta": "BQJyAsoCxAJuAhgCDgJtAg8DjgO0A8IDWQTwBXMIaQv5DS4PjQ6NDGIKHgkZCQYKhQtNDeYOvQ9tD9MNFwvRB/AEMwPJAicDawMUAxUCrwAd
+[recv 16.9s] ASR delta: '更加'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PXcqBcm1w3ktAfHbLe", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PYPjrCrEAwNgO4VPB3", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #14] t=17s  delta='有更加'
+[recv 17.5s] ASR delta: '好的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PY1bJbOEM45KLkkwNd", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #12] t=17s  delta=' humans can go—'
+[recv 17.9s] MT delta: 'an'[recv 18.0s] ASR delta: '做'
+[recv 18.2s] MT delta: ' eighty'[recv 18.2s] ASR delta: '法'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PZ81kMIw7j97ha7Oj1", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #13] t=18s  delta='an eighty'
+[recv 18.6s] MT delta: ' definitely'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PZEEsqDjTkuupaoqPv", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #15] t=18s  delta='好的做法'
+[recv 18.8s] ASR delta: '。但是'
+[recv 19.0s] MT delta: ' takes'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PaydnorHCRSlAU730k", "delta": "ov99/5z/5f8vAFUATwAoAOz/pP9x/3P/uf8pAIgAmABHAL//XP9i/8j/OQBoAEoAGwAQACoAOAARAMj/p//g/10AxQDAAE4Aw/99/6f/EwB3
+[recv 19.2s] MT delta: ' a'  [MT  SEG #14] t=19s  delta=' definitely takes a'
+[recv 19.4s] MT delta: ' better'  [ASR SEG #16] t=19s  delta='。但是'
+[recv 19.4s] ASR delta: '我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PaVnqhNH70XNjeRqhK", "delta": "wPgI+Cv3ZfYm9nL2MPf393L47Pi9+az6IvvF+vf5Wfk6+aX5Uvrb+lH73ft6/AL9gv0N/mj+i/6v/tz+Lv91/07/1P5Z/hH+LP6B/qb+qv4l
+[recv 19.6s] MT delta: ' approach'[recv 19.6s] ASR delta: '只能'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pa06KbJCtL6xXPhd6Z", "delta": "ggkmCiEKoAlfCYQJOAmkCHUIWwgrCNsHNQdrBs4FhgV0BRUFNAQJA9EBAwHvABEBGAGCAOf+Rv28/If9jf5N/hr9C/xg+zz7cft9+4H76Pt8
+[recv 19.9s] ASR delta: '说'
+[recv 20.0s] MT delta: ','[recv 20.0s] ASR delta: '我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PbuLAYp1Rct82HMfhE", "delta": "I/6s/n//hQCjAbsCqwNUBLIEwgSFBB8EuQOGA7sDZQSeBVwHiAkJDJ8OBBHoEuITwRN+EjQQOg32Cc0GIAQtAisBKAEqAhEEggYaCUwLjgyO
+  [ASR SEG #17] t=20s  delta='我只能说我'
+[recv 20.4s] ASR delta: '分享'
+[send] chunk 101/307  sent=20200ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PbJqbE8vB3E4U02yoa", "delta": "UQB2AeQBKwEmAIz/GP8Z/y8ARwErAcoA2gBUACr/LP9EAGUA3f+KALQBMwGZ/xb/lP+//z0AXgF3AUEAWv8L/xr/y/+qAP8ACAHzAFkAnv93
+[recv 20.6s] ASR delta: '一些'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PcVGYNCoW7xTVDnYhc", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 21.1s] ASR delta: '自己的'
+  [MT  SEG #15] t=20s  delta=' better approach,'
+[recv 21.2s] MT delta: ' but'  [MT  SEG #16] t=21s  delta=' but'
+[recv 21.4s] MT delta: ' I'[recv 21.4s] MT delta: ' can'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PckGf1Xwamkwpj0lGk", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 21.6s] MT delta: ' only'[recv 21.8s] MT delta: ' share'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PcaVCHX4fAMfUZ2xeb", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 22.0s] MT delta: ' some'  [ASR SEG #18] t=21s  delta='分享一些自己的'
+[recv 22.0s] ASR delta: 'learning'
+[recv 22.2s] MT delta: ' of'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PdRdr1JVVd8p2FLTed", "delta": "XwAiAVkBPQEMAZ0A+/+V/5v/JQDhAGkBRwFUAF3/Kf9A/5z/EABYAFQAAAC6/zX/2v7i/qT/lwD2AMcAQAD7/4L/ef8iAAgB3gGZAewAXQD9
+  [MT  SEG #17] t=22s  delta=' I can only share some of'
+[recv 22.4s] MT delta: ' my'[recv 22.4s] MT delta: ' own'  [ASR SEG #19] t=22s  delta='learning'
+[recv 22.5s] ASR delta: '。'
+[recv 22.5s] ASR delta: '对'
+[recv 22.6s] MT delta: ' learn'[recv 22.7s] ASR delta: '对'
+[recv 22.7s] ASR delta: '对'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PddEbUlB1DGsElkwhP", "delta": "X/59/dv9AQCxATgBiAD6AIAAxP6G/rkAgQJvAQL/If4E/zUAUQEbAlwB3P8AAF8BmwGL/yj9Fv0M/ysBqQJrA5ACwf/A/Mj7dP0rAJcCyQMI
+[recv 22.9s] MT delta: 'ings'[recv 23.1s] ASR delta: '，我'
+[recv 23.1s] MT delta: '.'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PeHBYbvmrssaKM9qeq", "delta": "3/4g/1f/hv+6/+P//f8lAGIAkQC2AOEAHgFWAZUByAHpARICRQJaAlcCYAKJApsCmAKQAn8CeQJ/AoACggJnAloCWQJUAmECdQJ/AnsCagJV
+[recv 23.3s] MT delta: ' share'[recv 23.3s] ASR delta: '犯'
+  [ASR SEG #20] t=23s  delta='。对对对，我犯'
+[recv 23.5s] ASR delta: '过'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PezdQmj5FiEdZRftf8", "delta": "OP08/cD90P54AMMC1AXFCYMOqRNwGPAbaB2hHAIaThYuEhkOQwrZBhUERgK/AagCvAQxBxkJvwneCLIGuQNXAMj8HfmL9WPyIPA478Pvg/EB
+  [MT  SEG #18] t=23s  delta=' my own learnings. share'
+[recv 23.7s] MT delta: ' your'[recv 23.7s] ASR delta: '很多'
+[recv 23.9s] MT delta: ' experience'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PePrQ7UgVfE1GzMvSB", "delta": "//8pAA8A+v8pAE4ALAALAB4AJgALAAQAGwAfAA8AEQApADcAKwAgACsANAAgAAAAAwAiACMAEwArAFQASwAmACcAOQAiAPb/7v8GABMADwAU
+[recv 24.1s] ASR delta: '错误'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pf0sMzSNWmIBLgyusi", "delta": "IgtSIGYq4Sm5IkgZ9BFNDz8SNRrkJG8vqjhsQMpF8kZJQgk5cS3LIIkVkQ3lCJEE7v0s9fPsQudp5PPjl+Qy5B/hRNu+05rLDMS3vum8QL6j
+  [ASR SEG #21] t=24s  delta='过很多错误'
+[recv 24.5s] ASR delta: '，然后'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PfKwTO1bR4Wa0gDpym", "delta": "wvXV87LyQfNV9hP8WwKWBY8DCPza8ebqxuu39OsB2wwgENEKhQCV9x718/m1AlgK+wyXCvIF0AKrA1MH3wr/C+cJ4AV+AkYBcwI0Bc8H3ggK
+  [MT  SEG #19] t=24s  delta=' your experience'
+[recv 25.0s] MT delta: '.'[recv 25.1s] MT delta: ' Yeah'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pg2CUz8N29WhaAMMTT", "delta": "GwkMCLQGhwXzBP8EXwW1BbIFRAWxBDIE0wN6A8cCWgFE/8X8RPoz+LX2u/UK9UL0TvNr8vnxh/I/9Mn24PhQ+Zb3vvMK73jrbOpE7GfwhPUz
+[recv 25.3s] MT delta: ','  [MT  SEG #20] t=25s  delta='. Yeah,'
+[recv 25.5s] MT delta: ' yeah'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PgaIXs3cSnwIOVB8Yp", "delta": "6wC1/zn/OwDCABAAbf9JAMUATP/B/wcBOABN//D/yABVADb/z//lAFoAmv+K/60AzQAq/47/KAFFAO3+UQDUAMX/aP+qAKIAev+8/4gAOQDu
+[send] chunk 126/307  sent=25200ms
+  [ASR SEG #22] t=25s  delta='，然后'
+[recv 25.7s] ASR delta: '这个'
+[recv 25.9s] MT delta: ','[recv 25.9s] MT delta: " I've"[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PgQSIz0fiHrtFgeuXG", "delta": "bf1tBu0L/w3+DA8JxgOPAAcCXgjgEf0bGSR/KCApnyacISkaxQ+IAhz0+uZC3dDX2NbM2VnfUuZO7hv2N/yE/64A/ADFAXsDQQYcCj0OtRHC
+[recv 26.1s] MT delta: ' made'[recv 26.3s] MT delta: ' a'[recv 26.3s] MT delta: ' lot'[recv 26.3s] ASR delta: '成长'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Phb5bcMxrZFAOkoIL7", "delta": "ugY/B64H7gc4CLEIPgmyCQgKVgqxCjsLswvqCwEMOgydDM4MzAzoDD4NcA1bDT0NOQ0wDRsNAA23DEsMEAz8C6gLFQu4CoYK9QkrCZcIOAjT
+  [MT  SEG #21] t=26s  delta=" yeah, I've made a lot"
+[recv 26.5s] MT delta: ' of'[recv 26.7s] MT delta: ' mistakes'  [ASR SEG #23] t=26s  delta='这个成长'
+[recv 26.8s] ASR delta: '学习'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PhvQkYsWTCRPsdRHmx", "delta": "gufC5THmO+iq6nvsWu2h7eHtee5779LwgfK29Jv3Dfuj/tEBLgSaBTYGKgZsBeADhgHP/nj8Svty+2f8Tf1f/VD8dPp4+Pn2HvbI9cT1BPbF
+[recv 27.0s] ASR delta: '了'
+[recv 27.2s] MT delta: ','[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PiFwAu2VjBl67pZZSY", "delta": "AwO5A68D+QKeAdD/8P0z/IP63viO96n2I/YX9oL2OfcG+Nb4qfl3+jP7wvsm/GX8b/xA/Pb7n/tf+3X78Pup/LH9Wv/EARQFcgnEDp4UEBsQ
+[recv 27.4s] MT delta: ' and'[recv 27.4s] ASR delta: '很多'
+  [MT  SEG #22] t=27s  delta=' of mistakes, and'
+[recv 27.6s] MT delta: " I've"[recv 27.6s] MT delta: ' grown'  [ASR SEG #24] t=27s  delta='学习了很多'
+[recv 27.6s] ASR delta: '。所以'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PigMHk7eF1mWuVpLAt", "delta": "0/9KAL4AhQA1AEYA5ACNASIBsACIAOIANwHQAMcA7AAgAd0AowDwALQAhAD0AFEBOgGDANn/uP/P/xMAAgDb/9f/rf9z/3P/2f8LAL7/n/8A
+[recv 28.0s] ASR delta: '只是'
+[recv 28.0s] MT delta: ' and'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PjWmVNthqjGVAbkbAN", "delta": "e/9w/3D/jf+1/8//5P/q/87/u//Q//j//v/d/9P/8P8eAFYAdQB3AF8ALQAFAPL/AgAmADMAHAALAB8AIgDZ/5D/lP+6/6L/Xf9U/4b/wf/5
+[recv 28.2s] MT delta: ' learned'[recv 28.4s] MT delta: ' a'[recv 28.4s] ASR delta: '简单'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PjNWY7T6YTlyRSGg9B", "delta": "8P4X/zP/SP9V/1v/Tv9K/1//gP+l/87/9/8NABUAGAAWABcADQADAAgACQAWACoAQQBRAF4AYwBfAFIARgBLAE8AWgBoAHYAlgC/APAAJAFY
+  [MT  SEG #23] t=28s  delta=" I've grown and learned a"
+[recv 28.6s] MT delta: ' lot'  [ASR SEG #25] t=28s  delta='。所以只是简单'
+[recv 28.6s] ASR delta: '跟'
+[recv 28.8s] MT delta: ','[recv 28.8s] ASR delta: '大家'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PjrKvFphmXgWDrngXk", "delta": "tgCJADsAIABaAIYAjABLAAoA7P/2/wwA3f9k/67+Dv6v/bn9A/47/gb+S/1A/Fz7/voz+7f7G/we/LL7FPun+p/64/oV+/H6dfrq+Xz5TPlH
+[recv 29.2s] MT delta: ' so'[recv 29.2s] MT delta: " I'm"[recv 29.2s] ASR delta: '分享'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PkovwnzBAC9nsmldha", "delta": "8wLxAukC6wIFAzkDkQMJBJsEOwXmBaAGcQdaCFgJXwpjC0cM+gyJDQ0OgQ7KDtcOqA5DDqkN5gwLDCMLKgobCfgHzQarBZkEnQPBAgICVAGz
+[recv 29.4s] ASR delta: '一下'
+[recv 29.5s] MT delta: ' just'  [MT  SEG #24] t=29s  delta=" lot, so I'm just"
+[recv 29.6s] MT delta: ' simply'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pk43vOEYkQ1Lt9J3ig", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 30.0s] MT delta: ' sharing'  [ASR SEG #26] t=29s  delta='跟大家分享一下'
+[recv 30.0s] ASR delta: '。'
+[recv 30.0s] ASR delta: '就'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pl07r2axCRRjX7AHfI", "delta": "a+L+407l/Oaj6QTtNfA+8vDySPIV8Z/wlPHC80r2kvjC+ir9kQCBBRkLWhCpFNYX6BktG9sbkhuyGfoVnhAFCjIDtvxF9q3vOOn54zngLN7U
+[recv 30.2s] MT delta: ' it'[recv 30.4s] ASR delta: '还'
+[recv 30.4s] MT delta: ' with'[recv 30.4s] MT delta: ' everyone'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PlKGtpN1xYHbM1HE8H", "delta": "CfVk9T71NPWK9aj1hfWu9Tf2hvaX9v72fvfD9wz4YPiL+J348fg9+U35evnp+Tz6JPoG+iH6KvoU+gX6I/oi+t35t/m/+ar5i/me+aT5bPlW
+  [ASR SEG #27] t=30s  delta='。就还'
+[recv 30.6s] ASR delta: '还是'
+[send] chunk 151/307  sent=30200ms
+  [MT  SEG #25] t=30s  delta=' simply sharing it with everyone'
+[recv 30.8s] MT delta: ','[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PlBLBVMwTkqcGRVWcE", "delta": "GxOZErURfhDVDsgM2gqKCWoJxAobDWEPvxDKEGgP4QyZCdUFegGN/FL3OPLy7T7rwOpW7DrvFvLm8zH0JvM78Tvvgu0j7D7rSOvW7BnwEfXm
+[recv 31.1s] ASR delta: '就是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PmXh7XXgb0mV65ihCl", "delta": "nv2T/an9/P2D/iD/vf86AI0AoQB5ACcAv/9L/9v+af7o/VL9ufwr/L/7lvu6+yP8vfxe/er9Sv5p/kP+1v06/Zf8Ifz/+0r8/vzy/fX+2f9/
+[recv 31.3s] ASR delta: '我'
+[recv 31.5s] ASR delta: '可能'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PmRcOStURvrhZFn5rg", "delta": "EgASABAADgAUABMAEwAUABQAEgASABUAEwASABIAFAAUABcAFgAVABgAEgARABUAFAAVABQAFgAWABIAFgAUABMAFQAXABYAFgAWABYAFQAX
+  [ASR SEG #28] t=31s  delta='还是就是我可能'
+[recv 31.7s] ASR delta: '还是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PnM6WfQhAB5b1PAbHE", "delta": "DwAQABEAEAARABIAEQAQABEAEgASABIAEgASABIAEgATABMAEwASABMAEgAUABQAFAATABQAFAAVABQAFAAVABQAFQAVABQAFQAVABUAFAAV
+[recv 32.3s] ASR delta: '分'
+  [MT  SEG #26] t=31s  delta=','
+[recv 32.5s] MT delta: " I'm"[recv 32.5s] ASR delta: '子'
+[recv 32.5s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pn6HuJKBQmv9ugRZLm", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #27] t=32s  delta=" I'm"
+[recv 32.7s] MT delta: ' probably'  [ASR SEG #29] t=32s  delta='还是分子的'
+[recv 32.7s] ASR delta: '那'
+[recv 32.9s] ASR delta: '一'
+[recv 32.9s] ASR delta: '部分'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PnrmJslSLTDvQzp0wS", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 33.2s] MT delta: ' still'[recv 33.2s] ASR delta: '，所以'
+[recv 33.3s] MT delta: ' just'[recv 33.3s] ASR delta: '是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PoMWSJvMW4NUrrmQxA", "delta": "9P/6////AwAHAAoADQARABkAHwAmACoALgAvAC4ALwAwADAAMAAxADQAOAA/AEcATABPAFEAUwBVAFYAVwBWAFQAUQBNAEwASwBMAE4AUgBY
+[recv 33.5s] MT delta: ' part'[recv 33.5s] ASR delta: '有'
+  [ASR SEG #30] t=33s  delta='那一部分，所以是有'
+[recv 33.7s] ASR delta: '这个'
+  [MT  SEG #28] t=33s  delta=' probably still just part'
+[recv 33.7s] MT delta: ' of'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PoufIW5cW5C2wuDjdo", "delta": "5fQN9VD1mvXL9dv18PUt9p32MvfQ91/4zvgk+Xf54/lw+vX6KvsP+8P6ZfoV+u754fm6+W35I/kM+U351/mJ+oP76PyC/gwAiQEhA+4E7Ab/
+[recv 33.9s] ASR delta: 'sur'
+[recv 33.9s] MT delta: ' the'[recv 33.9s] MT delta: ' molecule'[recv 33.9s] ASR delta: 'vival'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PpgghOouPbPoPo0XIW", "delta": "HAdABkYGQQeCCAQJeAhcBxAGBgQXAWf+1fwD/Br7vPkZ+Dn2UPQG847ywvI48x7z8PFz7x7sxOmH6YbqR+sg62jqFurJ6i/sY+3H7XTtQe2m
+[recv 34.3s] ASR delta: ' bias'
+[recv 34.5s] MT delta: ','[recv 34.5s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PpO3L8Ee1LQCd7N2H9", "delta": "iQKEAlcCQwJnAnsCWAJUAqAC6wIbA3QDywPgA+8DLwRoBHkEigSlBLcEywTtBA4FMgVgBZMFyQX7BRsGNgZjBoIGcgZjBm8GWgYUBtwFtQWD
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PpxGux1TK0YMzlbJXX", "delta": "p//d/yQAMQAIAOf/8P8WAEMAWwBbAFIASABAAD4APwA5ADQAPwBKAEEANQA+AEYALgAHAPb/BQAnADQAIwAXACYAIADx/9n/AwBCAGIAYwBW
+  [MT  SEG #29] t=34s  delta=' of the molecule,'
+[recv 35.4s] MT delta: ' so'  [ASR SEG #31] t=34s  delta='这个survival bias的'
+[recv 35.4s] ASR delta: '。我'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PqZutaZpXQeVPTKHmV", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 35.6s] MT delta: ' there'[recv 35.6s] ASR delta: '觉得'
+  [MT  SEG #30] t=35s  delta=' so there'
+[recv 35.8s] MT delta: ' is'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PqftCqfkXXaUsm0mV6", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[send] chunk 176/307  sent=35200ms
+[recv 36.0s] MT delta: ' that'[recv 36.2s] MT delta: ' survivor'  [ASR SEG #32] t=35s  delta='。我觉得'
+[recv 36.2s] ASR delta: '广'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PrYsqlw9ssnmSkUvyI", "delta": "OPq0A0YJxwJV9lH04AG7DdQHLPmI9SL/1gd9Bqr/Rvta+xD/9wMvBYAA1Pt+/fUBwAIRAScBewGS/rn7fv4rBPoEJP+5+e774wLmBcsBvfvZ
+[recv 36.4s] ASR delta: '义'
+[recv 36.6s] MT delta: ' bias'[recv 36.6s] ASR delta: '上的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PrRjlHz9RWTSYMp2H1", "delta": "4QX4BVsFEQWJBakFAQXJBAQFjQQ6BA4FbwVFBDsDdwP4A6AD6QILA6gDWwOrAtcCHwNlArEBNAKRAssBHwEhASMBkwDf//b/jQBSAGv/Y/8F
+  [ASR SEG #33] t=36s  delta='广义上的'
+[recv 36.8s] ASR delta: '管理'
+  [MT  SEG #31] t=36s  delta=' is that survivor bias'
+[recv 37.0s] MT delta: '.'[recv 37.0s] ASR delta: '，我们'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Ps2coELGPdIxRBCvjB", "delta": "W/n//ToClgXcBycJnAkgCX8HzASTAYv+S/wr+0D7e/zE/vcB0AUICiIOiRHTE8wUaxSkEnsP9ApNBez+QvjW8T/s8OcF5Z/j6+PE5cLomuwG
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PsFMUJmxZIQuw5Qp1b", "delta": "MAJJAlICSwI1AhMC6QG8AZEBagFFASEB+wDUAK8AkgB+AG0AWAA4ABIA8f/f/+P/9/8NABwAIQAiACgAOgBVAHMAjwCmALwA0gDtABEBPAFr
+[recv 37.4s] ASR delta: '可以'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PsG1hSknD9beUrwlCv", "delta": "/P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8//z//P/8
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PtfYCw5GL7lLf94NCg", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PtMzRLQTz9zyiRVX7k", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #34] t=38s  delta='管理，我们可以'
+[recv 38.8s] ASR delta: '就是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pumzvi1WAVoawulTJF", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 39.3s] ASR delta: '去'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Puap2BHQZS2C4V2vSj", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #32] t=38s  delta='.'
+[recv 39.7s] MT delta: ' Broad'[recv 39.7s] ASR delta: '说'
+  [ASR SEG #35] t=39s  delta='就是去说'
+[recv 39.9s] ASR delta: '很多'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PueChwGNtfgZKrEYAK", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #33] t=39s  delta=' Broad'
+[recv 40.1s] MT delta: 'ly'[recv 40.1s] MT delta: ' speaking'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Pv8M78zejMiePxPwEK", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 40.5s] MT delta: ','[recv 40.5s] MT delta: ' management'[recv 40.5s] ASR delta: '方面'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PvNvWKRD33GU2swzih", "delta": "cgBpABIAo/9c/07/VP83/87+Hf5S/aX8Ovz7+6r7Lvuy+mn6R/o6+lv6uPo/+937iPwn/Zr93/0O/j7+av59/mn+N/7o/XX96fxs/B389fvm
+  [MT  SEG #34] t=40s  delta='ly speaking, management'
+[recv 40.9s] MT delta: ' has'[send] chunk 201/307  sent=40200ms
+[recv 41.1s] MT delta: ' many'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PwzuGInQImrH4cPakU", "delta": "nf5w/48AbwBi///+t//RAIoBJgHP/xD/0P/ZAPMAdgAhACQAWABzADcA+v9xAFoBeQGXAK7/fv/y/2MAfQCbAMEAFQDB/oP+xv/HAIgA5P+d
+[recv 41.3s] MT delta: ' dimensions'  [ASR SEG #36] t=40s  delta='很多方面'
+[recv 41.3s] ASR delta: '，然后'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PweMuCaW2qnqj8ET8Y", "delta": "tv7vAEgDDwRCAqL/6f7S/z4AMgAGATYCBgJxAGn/vf/W/8P+Cv5Q/08BzgF/AX8BngDF/iH+Ev/A/7//LgDMAHEAUv/0/ur/lQDq/0D/yv/d
+  [MT  SEG #35] t=41s  delta=' has many dimensions'
+[recv 41.9s] MT delta: ','  [ASR SEG #37] t=41s  delta='，然后'
+[recv 41.9s] ASR delta: '团队'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PxDgUUA3co4dReGn9B", "delta": "FwPEAiUCowGgATgCOgNmBHwFQwahBrAGnwaEBlsG/wU+BRgE3AL6AcYBVAJMAwwE8wO9ApsAM/55/Br8/vx3/sL/TQD5/yn/Zf7//RT+ov6H
+[recv 42.1s] ASR delta: '的'
+[recv 42.4s] ASR delta: '管理'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PxlmSxaf0ednjRFcgu", "delta": "e/60AJ4CBAPlAEP+iv7dAC4BZP9x/9oBiQI5ALb+/v9bAcIA4P+cAHUBtABkAKcBhAF4/2T/mgGwAfr+4P3d/9QB0gEVAaEAs/9n/lr+CQAf
+[recv 42.6s] ASR delta: '是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PxNv61IgWwNMKBcQ5Y", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #38] t=42s  delta='团队的管理是'
+[recv 43.0s] ASR delta: '广'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PylyCQatgtIoMUx3Yg", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 43.2s] ASR delta: '义'
+[recv 43.4s] ASR delta: '管理'
+  [MT  SEG #36] t=42s  delta=','
+[recv 43.4s] MT delta: ' and'[recv 43.6s] ASR delta: '的一'
+[recv 43.6s] MT delta: ' team'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PyxBTfRJQdt2BWqnOT", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 43.8s] ASR delta: '部分'
+[recv 43.8s] MT delta: ' management'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PzhFBzjNpRjMS0ofyH", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #37] t=43s  delta=' and team management'
+[recv 44.2s] MT delta: ' is'  [ASR SEG #39] t=43s  delta='广义管理的一部分'
+[recv 44.2s] ASR delta: '。但是'
+[recv 44.4s] ASR delta: '呢'
+[recv 44.4s] MT delta: ' part'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PzuJEPI0RIZrvujlI1", "delta": "4f0BAF0BmQBF/m39sf9XAgsCo/+8/tQA/gKjAYn+Sv6fAMUBbwGsAdIBtABUAHYBRAHv/sn90P9KAioCaQB//6z/5/8AANb/+/6H/rb/lAF7
+[recv 44.6s] ASR delta: '，'
+[recv 44.6s] MT delta: ' of'[recv 44.6s] ASR delta: '确'
+[recv 44.8s] MT delta: ' broader'[recv 44.8s] ASR delta: '实'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97PzP4kn4IKoz2akKJz1", "delta": "MwF/AaABlwGSAcABHAJWAh4CigEWAS8BegFQAfkALQGZAWcB2QDSADoBVQFQAYcBhAEMAbcA0wDjAHwAGABfAP4AHgHUALYAkQA2ADQAvwBX
+  [MT  SEG #38] t=44s  delta=' is part of broader'
+[recv 45.0s] MT delta: ' management'  [ASR SEG #40] t=44s  delta='。但是呢，确实'
+[recv 45.0s] ASR delta: '提'
+[recv 45.3s] ASR delta: '到'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q0EmOLiFAtaNteTlFM", "delta": "Fg1NDPQKLgkcB9QEawLx/3r9Kvs0+df3Rveb98P4hfqW/Kf+eADZAbAC8wKxAg4CNQFfAMX/lP/j/6YAvAH5AiUEFgWxBfMF4AWFBewEIwRE
+[recv 45.4s] MT delta: ','[recv 45.6s] MT delta: ' but'[recv 45.6s] MT delta: ' when'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q0Pgy0i6pPKYTzOhlh", "delta": "ZANbAicB1v+M/pD9Gf0q/Zj9K/67/jv/uP80AKcA7QDiAHkAuv/M/v79m/3f/e3+ywB0A9cG2QpJD8sT7RcfG80cjxw1GvcVUhDwCXkDiv18
+[recv 45.8s] MT delta: ' it'[recv 45.8s] ASR delta: '团队'
+  [MT  SEG #39] t=45s  delta=' management, but when it'
+[recv 46.0s] MT delta: ' comes'  [ASR SEG #41] t=45s  delta='提到团队'
+[recv 46.0s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q1lMp5lRUGQtg7kKGN", "delta": "/f8NABgAFAApAFIAYwBdAFwAVwBCADgAOgAoABYAKQBAADAAHQAvAEcATABaAGgAVAArABYAFQAYABgAGgAhACkAIgAJAPP/7f/8/x0APwBP
+[send] chunk 226/307  sent=45200ms
+[recv 46.2s] MT delta: ' to'[recv 46.2s] MT delta: ' team'[recv 46.4s] MT delta: ' management'[recv 46.4s] ASR delta: '管理'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q14bjcpKtkvlhy3Htr", "delta": "8AXgBcAFgQUjBakEIQSXAw8DhQLzAVIBoADf/xv/YP6z/RH9dPzU+y/7i/rz+W75Avmr+F/4GfjZ96L3fPdt93b3kve49973APgi+E34iPjS
+[recv 46.6s] ASR delta: '又'
+[recv 46.8s] MT delta: ','[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q11GU1P20MM0Wue7x8", "delta": "pAWHBGz/QP+pAXwAV/8MAUEB7P7c/TsAhwMMAXH7o/0JBKgByPrL/KID2gKl/aj9MwKyA5r/tP0BASEBGP56/5cAa/w6/AcC+AFL/Fv8BwEM
+  [MT  SEG #40] t=46s  delta=' comes to team management,'
+[recv 47.0s] MT delta: ' you'  [ASR SEG #42] t=46s  delta='的管理又'
+[recv 47.0s] ASR delta: '不得'
+[recv 47.2s] MT delta: ' inevitably'[recv 47.3s] ASR delta: '不'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q290FrlSQOswDm1QGF", "delta": "LQElAlkCLQIvArUClANYBKIEeQRWBL8E0wUYB+YHywfBBiwFnQOAAgICGQKeAkgDuQO0AzUDaAKBAaMA1v8F/zn+uv3e/aX+s/+FAL0AcgAd
+[recv 47.5s] ASR delta: '提'
+[recv 47.7s] MT delta: ' have'[recv 47.7s] ASR delta: '那个'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q2nEAYWgHdWTmouV0Y", "delta": "owDeAJ0AGQD7/1EAkQB+AE4AFgDf//D/SgBPAOv/xf/s//r/CgBBADoA6f/s/1AAbwA7AC4AQwAaANf/w/+2/5//tP/m////DAAWAAoAHABZ
+[recv 47.9s] MT delta: ' to'[recv 47.9s] ASR delta: '广'
+  [MT  SEG #41] t=47s  delta=' you inevitably have to'
+[recv 48.1s] MT delta: ' mention'  [ASR SEG #43] t=47s  delta='不得不提那个广'
+[recv 48.1s] ASR delta: '义'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q3WSRPkqb2zbVPfIGL", "delta": "4vbH9Eb09fT/9c32rveH+cH8mgCvAyUFRgXmBLAE9gS1Bd8GcwhKCvQL/gwoDWcM3ArjCBkHGwYqBgIH9gdcCOIHpwYcBcgDFAPpApYCawFr
+[recv 48.3s] MT delta: ' management'[recv 48.3s] ASR delta: '上的'
+[recv 48.5s] ASR delta: '管理'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q3qYT36t3Uo8pbyrYX", "delta": "O/tD/I/7cPmI9rLz9PEH8gD0g/e7+9L/TwPcBScH/wZIBR4CC/7v+Y72cPSN84vzIvRO9en2f/jG+cL6avuX+2L7B/uk+o/6Vfsu/cT/mgL2
+[recv 48.7s] MT delta: ' in'[recv 48.7s] ASR delta: '，因为'
+[recv 48.9s] MT delta: ' general'[recv 48.9s] ASR delta: '这些'
+[recv 48.9s] ASR delta: '是'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q3DSHKxw6kZ2mKRvEO", "delta": "CQDPATYCTQH8/i79c/5FAQwC2wApAHQAtgA7AJv/3/9rAEsAVAArATYByv9P/9IAtwFaAPv+Yv/y/6z/BAAgAR4BqP+w/kv/GwBEALgAhwES
+  [MT  SEG #42] t=48s  delta=' mention management in general'
+[recv 49.1s] MT delta: ','  [ASR SEG #44] t=48s  delta='义上的管理，因为这些是'
+[recv 49.1s] ASR delta: '相关'
+[recv 49.3s] MT delta: ' because'[recv 49.3s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q4RZQ7tw7iXqT4vz2Y", "delta": "hwGnAccB2wHwAQgCDgINAiECPAJCAkQCWAJvAnoChAKJAn8CcgJuAnMCfgKKApACjQKJAoACbAJXAlACUQJHAkUCVAJWAkMCNgI3AjICLAIq
+[recv 49.5s] MT delta: ' these'[recv 49.5s] ASR delta: '。'
+[recv 49.5s] ASR delta: '那'
+[recv 49.7s] MT delta: ' are'[recv 49.7s] ASR delta: '我'
+[recv 49.7s] ASR delta: '觉得'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q4uR9w7ikV7qiIoMn4", "delta": "Ov2h/Qv+cv7R/iH/Xv+H/5z/oP+W/4X/dP9n/2D/YP9k/2n/af9i/1H/Nf8P/9/+p/5o/iX+4/2k/XP9Vf1O/V79h/3E/Q7+Yf62/gn/Vv+c
+[recv 49.9s] ASR delta: '广'
+[recv 49.9s] MT delta: ' related'  [ASR SEG #45] t=49s  delta='相关的。那我觉得广'
+[recv 50.1s] ASR delta: '义'
+[recv 50.1s] ASR delta: '上的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q5WtGbG05PKjxx5Yye", "delta": "vQIAAz4DXwNvA10DLAP8AsoChQJnArsCVQOwA5cDPgP5AvYCEwMSAwUDKAODA9cD5AOOAw8DzwLyAjgDUgM5AysDOgM3AwQDtQJvAk0CVQJr
+[recv 50.3s] ASR delta: '管理'
+  [MT  SEG #43] t=49s  delta=', because these are related'
+[recv 50.3s] MT delta: '.'[recv 50.5s] ASR delta: '它'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q5pYMpxtgLHzjYBIAd", "delta": "xvvr+438d/2X/rr/jwAQAUYBKAHXAJkAogAIAdgB7gIDBOUEfQWtBXkF+QQtBDIDTAK6AXEBOQH+AMcATQBD/+f9cPzR+lr5rPji+Lr5S/vL
+[recv 50.7s] ASR delta: '可能'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q5HSbakuXTQPLowgxX", "delta": "uf/E/83/0P/Q/8//0f/V/9v/5f/5/xcAOgBSAFoAUwBJAEQARABGAEcASwBSAFgAWABPAD4AMQAsACwAJgAUAPr/5P/b/+H/7//7/wAA/v/1
+[recv 51.0s] ASR delta: '有'
+[send] chunk 251/307  sent=50200ms
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q6GuEwQJejEgus44sq", "delta": "AwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwADAAMAAwAD
+  [ASR SEG #46] t=50s  delta='义上的管理它可能有'
+[recv 51.6s] ASR delta: '，第'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q6NIWZ9rHgYdO3FTm7", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 51.8s] ASR delta: '一个'
+[recv 51.8s] ASR delta: '是'
+  [MT  SEG #44] t=50s  delta='.'
+[recv 52.0s] MT delta: ' I'  [MT  SEG #45] t=51s  delta=' I'
+[recv 52.2s] MT delta: ' think'  [ASR SEG #47] t=51s  delta='，第一个是'
+[recv 52.2s] ASR delta: '战略'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q737wx7RrE6uw2pDKU", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 52.4s] MT delta: ' broad'[recv 52.4s] ASR delta: '上的'
+[recv 52.6s] MT delta: ' management'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q7wKgCZswGCTUPUPl2", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 52.8s] ASR delta: '管理'
+[recv 53.0s] MT delta: ' has'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q8wdPjgjRMm3QYrNHB", "delta": "agcdB88GlgZvBjkG4gVpBdYEKgR7A+kCeQIaAroBRQG3AB0AfP/U/j/+1v2V/XT9Wf0j/b38NPyn+zP77frL+sj6y/q3+nz6HPqj+SX5ufiG
+  [MT  SEG #46] t=52s  delta=' think broad management has'
+[recv 53.2s] MT delta: ','[recv 53.2s] MT delta: ' first'  [ASR SEG #48] t=52s  delta='战略上的管理'
+[recv 53.2s] ASR delta: '。'
+[recv 53.2s] ASR delta: '就'
+[recv 53.4s] ASR delta: '我们'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q8CJKC8cheEA2ugbZM", "delta": "iwdUB+MKJxBAFDMV8xLkDrMKdQdFBaADBAI+AHP+A/1Q/Ij8if3a/s//zP+S/lD8hvnh9hL1rPTx9av4LvyW/xECDANSAikATP3J+pz5OvpG
+[recv 53.6s] MT delta: ','[recv 53.8s] MT delta: ' strategic'[recv 53.8s] ASR delta: '作为'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q8fyvsorD84nyygtOt", "delta": "n/+t/+//NgBTAEAALgBCAF0ATQAaAO3/1f/P/+D/CgBJAHsAhQBpAEsANQASAOT/pf9V/yv/Mv8R/7r+b/4j/rb9LP0r/Gv6jPhj9932iva9
+  [MT  SEG #47] t=53s  delta=', first, strategic'
+[recv 54.2s] MT delta: ' management'  [ASR SEG #49] t=53s  delta='。就我们作为'
+[recv 54.2s] ASR delta: '整个'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q9ZzhZyIu5YKhzYvU0", "delta": "3gClAIUAWQCb/zD/8v+zADcAgv/4/7UAWwCo/9v/QwCq/+7+kf/nABEB2v/z/mb/IAD8/8b/MQAdAE3//v5K/7H/ZwD3AGgAhf+7/24AYgAf
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97Q9YmruHP1uf11cLmro", "delta": "rP5t/uf97vyR+8D5Yfe69DHy0+957X/ri+rO6v3rz+3/7/3xTvPs8w705POn82XzA/O08tvypPNC9QH4R/v3/eX/TwHVAV8BmQDT/73+m/3l
+[recv 54.8s] MT delta: '.'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QAF35OvnuqoZ0U2MP1", "delta": "OP6T/gP/i/8nANMAjQFLAgUDrwNDBMYEOgWiBQEGWwa1Bg0HYgewB+8HFgglCCMIHAgYCBYIEggCCN4HnwdGB9QGTga3BRUFdATeA1ADxAIz
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QADVAGp1a5IKXdKhtG", "delta": "oAClAKcApgCiAJwAlgCYAJ4AngCTAIoAhwCIAIcAhQB+AHUAcwB4AHoAdgByAHMAdwB5AHoAfAB5AHEAagBoAGwAcgB0AHAAaABjAGMAZABh
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QADdTfNBCIbmLGhU3p", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [ASR SEG #50] t=54s  delta='整个'
+[recv 56.1s] ASR delta: '部门'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QBOhLsDVl7aGTaTyEg", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[send] chunk 276/307  sent=55200ms
+  [ASR SEG #51] t=55s  delta='部门'
+[recv 56.5s] ASR delta: '来说'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QBnpCdnBIiFQ9BmeIx", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #48] t=55s  delta=' management.'
+[recv 56.9s] MT delta: ' That'[recv 56.9s] ASR delta: '，'
+[recv 56.9s] ASR delta: '整个'
+[recv 57.1s] ASR delta: '大的'
+[recv 57.1s] MT delta: ' is'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QCOPDoMQs4YazTNLJo", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  [MT  SEG #49] t=56s  delta=' That is'
+[recv 57.3s] MT delta: ','[recv 57.5s] MT delta: ' as'  [ASR SEG #52] t=56s  delta='来说，整个大的'
+[recv 57.5s] ASR delta: '团队'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QCJJjt85CsGy7ZVrnm", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 57.7s] MT delta: ' one'[recv 57.7s] ASR delta: '来说'
+[recv 57.9s] MT delta: ' department'[recv 57.9s] ASR delta: '，我们'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QClYYyCD70CqtyE4Oy", "delta": "q/M77KvmLOZ76OLp3ujW5Pff8dzf25bZ5tOXzNPH/8gA0d7b0+JM46PfCtsX2FTYQtva3vnhaOa+7KDynvas+Az5xPjs+SX9PQBYAXMAav+P
+  [MT  SEG #50] t=57s  delta=', as one department'
+[recv 58.3s] MT delta: '—'  [ASR SEG #53] t=57s  delta='团队来说，我们'
+[recv 58.3s] ASR delta: '哪些'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QDTLURgchdjc1QaMNA", "delta": "7AH9AR4CNgI8AjACLwIuAkICXAJnAnsCjQKNAqACqwKoArgCtQKuAr0CuwKoAo0CkgKpArICoAKbApACWgIhAtEBOwGNAMf/1f4B/j39efy+
+[recv 58.5s] MT delta: ' the'[recv 58.8s] MT delta: ' whole'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QDGnm75w9XSL3hiBE6", "delta": "cfT68lryqPLs8y/2Yvl5/VUCswclDUUSrhYVGkAcCR1SHP4ZDxbREM4KngTR/sL5sfWs8rvw9e9V8Lfx2vNW9tD4E/sa/fb+rgBIAo0DSgR6
+[recv 59.0s] MT delta: ' big'[recv 59.2s] MT delta: ' team'[recv 59.2s] ASR delta: '事情'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QE1boisWZ1A6nNHNZT", "delta": "HQAcABwAHgAiACQAIwAfABsAGQAaABwAGgAXABUAGQAlADMAPgBCAD8ANwAvACcAIAAZABAABwD9//P/7P/q/+//+/8IABQAHAAiACgAMQA6
+  [MT  SEG #51] t=58s  delta='— the whole big team'
+[recv 59.4s] MT delta: '—'[recv 59.6s] MT delta: ' which'  [ASR SEG #54] t=58s  delta='哪些事情'
+[recv 59.6s] ASR delta: '在'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QE8hyCska9ICNIvaEV", "delta": "Hf0H/Uz9BP7k/nr/vv/7/2MA6AB0ARYCoAL3AjMDTgNNA2cDuwM0BK0E6QTmBNME3QQRBYAFBAZEBi0GGQYyBkQGPAZFBksGLgYOBuEFoAVq
+[recv 59.8s] MT delta: ' things'[recv 60.0s] MT delta: ','[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QFQqtmevCgrP4YyBDH", "delta": "uQSBBRcG3gXdBMcDYAPzA/YEZwWyBP8CCAGQ/9n+pf6M/jz+iP1t/Bb7xPnD+Cb4v/dl9/32d/bq9Vb1zfRy9Dn0EvQB9NnznPOQ87Pz8PMl
+[recv 60.2s] MT delta: ' and'[recv 60.2s] ASR delta: '什么时候'
+  [ASR SEG #55] t=59s  delta='在什么时候'
+[recv 60.4s] ASR delta: '是'
+  [MT  SEG #52] t=59s  delta='— which things, and'
+[recv 60.4s] MT delta: ' when'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QFFexsJ5kBga2FKO6Y", "delta": "agD/ALv/ef7I/lf/NP+D/3kASAAr/2P/bAAIACr/tv9JAAkAEwBUAHMApgDz/zH/6f83ACMAuwB1ANv/HQBH/wT+8P5bAeoC0QLnAHj+df6w
+[recv 60.6s] MT delta: ','[recv 60.6s] MT delta: ' need'[recv 60.6s] ASR delta: '需要'
+[recv 60.8s] MT delta: ' to'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QFt1gvkloamKIrP6vO", "delta": "uAJBAxsDlQIzAqACmgPHBDsFVwTzA64EhQWZBcUE7QNFAwsD5QPeBDwFvATrAx8EsARfBNIDHANUAsYBMQEaAf0AWwDm/4X/W/9e/yX/tv4i
+[recv 61.0s] MT delta: ' be'[recv 61.0s] MT delta: ' done'[recv 61.0s] ASR delta: '做'
+[recv 61.2s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QGr37HQCYAhtak13EL", "delta": "SgSNBY0HgQnHCg0LVArPCPYGJAU4BJoEwQW2Bg0HtwZoBsEGTAdIB0QGZgS+AjACkgJ7A3oEXAUKBmAGYgb7BTsFbwT5A7UD2gN3BFwFJQa2
+  [MT  SEG #53] t=60s  delta=' when, need to be done'
+[recv 61.4s] MT delta: ','  [ASR SEG #56] t=60s  delta='是需要做的'
+[recv 61.4s] ASR delta: '，'
+[recv 61.4s] ASR delta: '哪些'
+[send] chunk 301/307  sent=60200ms
+[recv 61.6s] ASR delta: '事情'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QGV3Cx1K3M64D53nHk", "delta": "kwWsBfAFnAZSB7wH3AexB2YHEQfNBswG2gbCBqYGfAaABtoGQQdvB0oH+gadBiEGpgVZBUQFSQV2BcUFEQYxBjEGWwagBpYGVgYLBsAFrwXh
+[recv 61.8s] ASR delta: '在'
+[recv 62.0s] ASR delta: '短'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QH9RjNmAV07ItNy8k4", "delta": "YgBhAF8AXQBcAFsAXABdAF8AYgBlAGcAagBsAG8AcQByAHMAcwByAHEAbwBtAGsAaQBmAGMAYABcAFcAUgBMAEUAPgA3ADEAKwAmACIAHwAd
+[recv 62.2s] ASR delta: '期'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QH9APsbbVyIHlLz2pX", "delta": "AgADAAMAAgADAAMAAgACAAMAAgADAAMAAwACAAMAAgADAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgAC
+  [ASR SEG #57] t=61s  delta='，哪些事情在短期'
+[recv 62.5s] ASR delta: '是'
+  [MT  SEG #54] t=61s  delta=','
+[recv 62.8s] MT delta: ' and'[recv 62.8s] ASR delta: '不'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QHNoPkzWgFltisLCe1", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[send] trailing silence: 15 chunks (3.0s)
+[recv 63.3s] MT delta: ' which'[recv 63.3s] ASR delta: '做'
+[recv 63.5s] MT delta: ' things'[recv 63.5s] ASR delta: '的'
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QIV8XRkYLmPQwil6mN", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 63.7s] MT delta: ' should'[recv 63.9s] MT delta: ' not'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QIFCYK5iUwlV6Gk4ug", "delta": "AgACAAIAAgACAAIAAgACAAIAAgACAAIAAwACAAIAAgACAAIAAgACAAIAAgACAAMAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgADAAMAAgAC
+[recv 64.1s] MT delta: ' be'[recv 64.1s] MT delta: ' done'[recv 64.3s] MT delta: ' in'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QJAbJpfo4ezhWUahwI", "delta": "wANQBMcEXQQCA0cB+P+2/9gAKgMBBk8I9gjCB5cFzgNBAwME/AVKCI8Jqgl1CQoJlgdsBdYD8AI6Ah0CxwJWAzID6gJxAucAPf/L/qX+Of7L
+[recv 64.5s] MT delta: ' the'[recv 64.5s] MT delta: ' short'[recv 64.7s] MT delta: ' term'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QJM6xowyfjqhIc5bvT", "delta": "yMyKyUXLP9CE1gTdDeRa7N71cv9tB5QMlA45DrIMfwpTBwkDGP6F+aT2KPaj9/H58vsb/an9Gv6H/lr+sPxL+Z30T+8E6lrlreEo3/LdQ94p
+[recv 65.1s] MT delta: '.'[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QKJAwbQWpcnlpfDDPw", "delta": "dQc+B/8GxAaXBmUGGgbEBYAFLwXZBJcEUQQKBNQDqANxAzEDDwMAA9YCogKDAmcCPAIHAtkBpgFtAToBAgHTALUAjABLABMA7P+3/3D/Nf8N
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QKFWe06WSfNC3yMJcP", "delta": "qAKeBKkGswiKCtALQgzoC+sKZAlfByAF9AIjAcf/4v5n/kL+XP56/lf+zv3V/Hr78/mL+Gf3rvak9kn3UPiy+Xf7Pf2u/q7/LgA0AOj/c//g
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QKQ5S4EBSynKwyk5kk", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[send] audio done, waiting 2.0s before close...
+[send] session.close sent
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNNPSQ5BPVWpgRMyY7", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNk9uam5fGKz7rlvqL", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNUES7WITDBzhSYQON", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNzxnVyMcIWHuQKo35", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QN5SvrToCgMo9ekJAQ", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNIiJh63gDzUHO1uQx", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNFC8SYtKAMio36gq0", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNCMGZopfcSxVob28L", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QN9wn44i4mm2mI12Gi", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QN1nZdFI3YcdiDNNzx", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNer7SYcfdcIgkA7y8", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNZ28NWZAWhDNolE32", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QNnXNdimTPrVvq2MnV", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QO15PJnAiA0BEpjZiL", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QO6rr51DkdVC8LsG5d", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOu4bYx57Lz9OAnSz3", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOS51W4WSL9gpf0MNC", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOoOpp6NZwsWb9Pi1S", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOvjIrF9b1AasTLhyB", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOmGmU3a9k2gqtn6xN", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOfRiQo57rnPw0xcpP", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOr0y8ndufgFMRL99F", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOfaNEmyu5LcBSMUdN", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOASYqjs9P1P7gOkyX", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOQpcr2s4Xg9XUssMR", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOLbuiIZInwGegYNdm", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOC4g7xqt9xRHq6zjc", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOg7QLQk3wxv61BW9T", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOfazpDSAYY0EqIXeI", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOiB57GjZxGJWCBoI4", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOcVUqq5oY4225NSvf", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOqvrdn0rwrsBE9imP", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOJTp7LXWHjv7xQZaL", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QOEt8upV2LCImxqUyX", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPz2tNG7bU3wrGjea6", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPhoe5Q85eMgMPjFHR", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPKSsBqGjKQihi81j9", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPmkMNPXTeTxbhZz2S", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPJad0DJLgFTWun1z8", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPmN6E9tDsxmWsG5VC", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPIOsc5C5F9FEb4GmH", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPWQVftrMCaEEdutPI", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPV8lLJFJ3BAztogDi", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPWPOs31Zb09fFzsxT", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QP62gNJrvAkCXBlu4O", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPSI5Sa19p0w2MfSSM", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPeid0qZJGRmXCWUCf", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPb0XRP8MpMNAseu2b", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPZ2fpQUvSZRUFSU6P", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QP5kbGuQm7LGU9ncxE", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPcF7G8apdiGwNoecf", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPhGlFyHcNM2KdG1gk", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QP4dDttAVxem3fPMGC", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QP7hn9iZHdNsOPKIrC", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QPOn4JG31I9rNUw2WM", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQJeKoiwWA86qPlssg", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQlfmerm7T6uz1OoxD", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQPm0ANOGIy6icZh2V", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQBjugbVsvXuTos4x7", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQXc0dIK5XV1Hctmw8", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQG7OHqkvmcOvfc8ti", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQvSysHV3YMHgjPgsU", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQXrbzzLnjAYMGsEGn", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQ2Bgt1YDz3KaHPkEr", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQAUEUa60FkcLCbiDv", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQQj42t3fHRJY4Mh7g", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQtMJ6dpzeiI6qY3In", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQ5u2rWI8OTWlj3fZN", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQ9IKKQ7NXfdTgqR1A", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQqbCtwrooMArEgkZY", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQoiJV0XkqkYcj3OVF", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQXXkYfv8uMGq4q9oi", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQiQtmn73pPxhxNfwh", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQ5OmSWZSMNtRRXcXK", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQDkZodWDOh3wh3Kg3", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQHXvsTkvehZXJBJj5", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv] UNKNOWN: session.output_audio.delta {"type": "session.output_audio.delta", "event_id": "event_E97QQR2dy5iqemVwyiU5w", "delta": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+[recv 72.0s] session.closed
+
+[close] code=None reason=None
+
+================================================================================
+DELTA SEGMENTATION SUMMARY
+================================================================================
+
+Event counts: {
+  "session.created": 1,
+  "session.updated": 1,
+  "session.output_audio.delta": 237,
+  "session.output_transcript.delta": 204,
+  "session.input_transcript.delta": 198,
+  "session.closed": 1
+}
+ASR delta events: 198, done events: 0
+MT  delta events: 204, done events: 0
+First ASR text at: 1.1s
+First MT  text at: 0.7s
+MT started before ASR by 0.4s
+
+ASR segments: 57
+  #  1  t=   2s  ' 首先是这样哈，就是'
+  #  2  t=   4s  '我'
+  #  3  t=   5s  '我觉得我'
+  #  4  t=   6s  '做到了'
+  #  5  t=   7s  '比如说按一个'
+  #  6  t=   8s  '分数来评'
+  #  7  t=   9s  '的话，我可能做到了'
+  #  8  t=  10s  '七十分。但是'
+  #  9  t=  12s  '我不知道'
+  # 10  t=  13s  '，人能做到'
+  # 11  t=  14s  '多少分。对'
+  # 12  t=  15s  '对，那那'
+  # 13  t=  16s  '八十分肯定'
+  # 14  t=  17s  '有更加'
+  # 15  t=  18s  '好的做法'
+  # 16  t=  19s  '。但是'
+  # 17  t=  20s  '我只能说我'
+  # 18  t=  21s  '分享一些自己的'
+  # 19  t=  22s  'learning'
+  # 20  t=  23s  '。对对对，我犯'
+  # 21  t=  24s  '过很多错误'
+  # 22  t=  25s  '，然后'
+  # 23  t=  26s  '这个成长'
+  # 24  t=  27s  '学习了很多'
+  # 25  t=  28s  '。所以只是简单'
+  # 26  t=  29s  '跟大家分享一下'
+  # 27  t=  30s  '。就还'
+  # 28  t=  31s  '还是就是我可能'
+  # 29  t=  32s  '还是分子的'
+  # 30  t=  33s  '那一部分，所以是有'
+  # 31  t=  34s  '这个survival bias的'
+  # 32  t=  35s  '。我觉得'
+  # 33  t=  36s  '广义上的'
+  # 34  t=  38s  '管理，我们可以'
+  # 35  t=  39s  '就是去说'
+  # 36  t=  40s  '很多方面'
+  # 37  t=  41s  '，然后'
+  # 38  t=  42s  '团队的管理是'
+  # 39  t=  43s  '广义管理的一部分'
+  # 40  t=  44s  '。但是呢，确实'
+  # 41  t=  45s  '提到团队'
+  # 42  t=  46s  '的管理又'
+  # 43  t=  47s  '不得不提那个广'
+  # 44  t=  48s  '义上的管理，因为这些是'
+  # 45  t=  49s  '相关的。那我觉得广'
+  # 46  t=  50s  '义上的管理它可能有'
+  # 47  t=  51s  '，第一个是'
+  # 48  t=  52s  '战略上的管理'
+  # 49  t=  53s  '。就我们作为'
+  # 50  t=  54s  '整个'
+  # 51  t=  55s  '部门'
+  # 52  t=  56s  '来说，整个大的'
+  # 53  t=  57s  '团队来说，我们'
+  # 54  t=  58s  '哪些事情'
+  # 55  t=  59s  '在什么时候'
+  # 56  t=  60s  '是需要做的'
+  # 57  t=  61s  '，哪些事情在短期'
+
+MT segments: 54
+  #  1  t=   1s  'First'
+  #  2  t=   2s  ", here's what I mean"
+  #  3  t=   6s  ':'
+  #  4  t=   7s  ' I'
+  #  5  t=   8s  ' think I’ve been able to do'
+  #  6  t=   9s  ' it that way, and'
+  #  7  t=  10s  ' if I rate it on a scale'
+  #  8  t=  11s  ' of a hundred,'
+  #  9  t=  12s  ' I’d say I’m at seventy'
+  # 10  t=  14s  '.'
+  # 11  t=  15s  ' But I don’t know how high'
+  # 12  t=  17s  ' humans can go—'
+  # 13  t=  18s  'an eighty'
+  # 14  t=  19s  ' definitely takes a'
+  # 15  t=  20s  ' better approach,'
+  # 16  t=  21s  ' but'
+  # 17  t=  22s  ' I can only share some of'
+  # 18  t=  23s  ' my own learnings. share'
+  # 19  t=  24s  ' your experience'
+  # 20  t=  25s  '. Yeah,'
+  # 21  t=  26s  " yeah, I've made a lot"
+  # 22  t=  27s  ' of mistakes, and'
+  # 23  t=  28s  " I've grown and learned a"
+  # 24  t=  29s  " lot, so I'm just"
+  # 25  t=  30s  ' simply sharing it with everyone'
+  # 26  t=  31s  ','
+  # 27  t=  32s  " I'm"
+  # 28  t=  33s  ' probably still just part'
+  # 29  t=  34s  ' of the molecule,'
+  # 30  t=  35s  ' so there'
+  # 31  t=  36s  ' is that survivor bias'
+  # 32  t=  38s  '.'
+  # 33  t=  39s  ' Broad'
+  # 34  t=  40s  'ly speaking, management'
+  # 35  t=  41s  ' has many dimensions'
+  # 36  t=  42s  ','
+  # 37  t=  43s  ' and team management'
+  # 38  t=  44s  ' is part of broader'
+  # 39  t=  45s  ' management, but when it'
+  # 40  t=  46s  ' comes to team management,'
+  # 41  t=  47s  ' you inevitably have to'
+  # 42  t=  48s  ' mention management in general'
+  # 43  t=  49s  ', because these are related'
+  # 44  t=  50s  '.'
+  # 45  t=  51s  ' I'
+  # 46  t=  52s  ' think broad management has'
+  # 47  t=  53s  ', first, strategic'
+  # 48  t=  55s  ' management.'
+  # 49  t=  56s  ' That is'
+  # 50  t=  57s  ', as one department'
+  # 51  t=  58s  '— the whole big team'
+  # 52  t=  59s  '— which things, and'
+  # 53  t=  60s  ' when, need to be done'
+  # 54  t=  61s  ','
+
+--------------------------------------------------------------------------------
+TIMELINE PAIRING (ASR + MT by segment index)
+--------------------------------------------------------------------------------
+   #  ASR time    MT range  ASR delta                                 MT delta
+   1      2800  0..   2   首先是这样哈，就是                                First, here's what I mean
+   2      4400  2..   2  我                                         
+   3      5000  2..   2  我觉得我                                      
+   4      6000  2..   2  做到了                                       
+   5      7000  2..   4  比如说按一个                                    : I
+   6      8000  4..   4  分数来评                                      
+   7      9000  4..   6  的话，我可能做到了                                  think I’ve been able to do it that wa..
+   8     10000  6..   7  七十分。但是                                     if I rate it on a scale
+   9     12200  7..   9  我不知道                                       of a hundred, I’d say I’m at seventy
+  10     13200  9..   9  ，人能做到                                     
+  11     14000  9..  10  多少分。对                                     .
+  12     15000  10..  11  对，那那                                       But I don’t know how high
+  13     16000  11..  11  八十分肯定                                     
+  14     17200  11..  11  有更加                                       
+  15     18400  11..  13  好的做法                                       humans can go—an eighty
+  16     19000  13..  14  。但是                                        definitely takes a
+  17     20000  14..  14  我只能说我                                     
+  18     21600  14..  16  分享一些自己的                                    better approach, but
+  19     22000  16..  17  learning                                   I can only share some of
+  20     23000  17..  17  。对对对，我犯                                   
+  21     24000  17..  18  过很多错误                                      my own learnings. share
+  22     25200  18..  20  ，然后                                        your experience. Yeah,
+  23     26200  20..  21  这个成长                                       yeah, I've made a lot
+  24     27000  21..  22  学习了很多                                      of mistakes, and
+  25     28000  22..  23  。所以只是简单                                    I've grown and learned a
+  26     29400  23..  24  跟大家分享一下                                    lot, so I'm just
+  27     30000  24..  24  。就还                                       
+  28     31000  24..  25  还是就是我可能                                    simply sharing it with everyone
+  29     32000  25..  27  还是分子的                                     , I'm
+  30     33000  27..  27  那一部分，所以是有                                 
+  31     34600  27..  29  这个survival bias的                           probably still just part of the molec..
+  32     35400  29..  30  。我觉得                                       so there
+  33     36000  30..  30  广义上的                                      
+  34     38000  30..  31  管理，我们可以                                    is that survivor bias
+  35     39000  31..  32  就是去说                                      .
+  36     40400  32..  34  很多方面                                       Broadly speaking, management
+  37     41000  34..  35  ，然后                                        has many dimensions
+  38     42000  35..  35  团队的管理是                                    
+  39     43200  35..  37  广义管理的一部分                                  , and team management
+  40     44000  37..  38  。但是呢，确实                                    is part of broader
+  41     45000  38..  39  提到团队                                       management, but when it
+  42     46000  39..  40  的管理又                                       comes to team management,
+  43     47000  40..  41  不得不提那个广                                    you inevitably have to
+  44     48000  41..  42  义上的管理，因为这些是                                mention management in general
+  45     49000  42..  42  相关的。那我觉得广                                 
+  46     50400  42..  43  义上的管理它可能有                                 , because these are related
+  47     51000  43..  45  ，第一个是                                     . I
+  48     52000  45..  46  战略上的管理                                     think broad management has
+  49     53000  46..  47  。就我们作为                                    , first, strategic
+  50     54800  47..  47  整个                                        
+  51     55200  47..  47  部门                                        
+  52     56200  47..  49  来说，整个大的                                    management. That is
+  53     57000  49..  50  团队来说，我们                                   , as one department
+  54     58200  50..  51  哪些事情                                      — the whole big team
+  55     59000  51..  51  在什么时候                                     
+  56     60000  51..  53  是需要做的                                     — which things, and when, need to be d..
+  57     61000  53..  53  ，哪些事情在短期                                  
+
+--------------------------------------------------------------------------------
+RECONSTRUCTION CHECK
+--------------------------------------------------------------------------------
+ASR reconstructed (322 chars):
+  ' 首先是这样哈，就是我我觉得我做到了比如说按一个分数来评的话，我可能做到了七十分。但是我不知道，人能做到多少分。对对，那那八十分肯定有更加好的做法。但是我只能说我分享一些自己的learning。对对对，我犯过很多错误，然后这个成长学习了很多。所以只是简单跟大家分享一下。就还还是就是我可能还是分子的那一部分，所以是有这个survival bias的。我觉得广义上的管理，我们可以就是去说很多方面，然后团队的管理是广义管理的一部分。但是呢，确实提到团队的管理又不得不提那个广义上的管理，因为这些是相关的。那我觉得广义上的管理它可能有，第一个是战略上的管理。就我们作为整个部门来说，整个大的团队来说，我们哪些事情在什么时候是需要做的，哪些事情在短期'
+MT  reconstructed (856 chars):
+  "First, here's what I mean: I think I’ve been able to do it that way, and if I rate it on a scale of a hundred, I’d say I’m at seventy. But I don’t know how high humans can go—an eighty definitely takes a better approach, but I can only share some of my own learnings. share your experience. Yeah, yeah, I've made a lot of mistakes, and I've grown and learned a lot, so I'm just simply sharing it with everyone, I'm probably still just part of the molecule, so there is that survivor bias. Broadly speaking, management has many dimensions, and team management is part of broader management, but when it comes to team management, you inevitably have to mention management in general, because these are related. I think broad management has, first, strategic management. That is, as one department— the whole big team— which things, and when, need to be done,"
+
+Total: 57 ASR segments, 54 MT segments
+[probe] done.

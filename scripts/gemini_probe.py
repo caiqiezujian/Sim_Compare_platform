@@ -10,22 +10,26 @@ Protocol:
   - session.send_realtime_input(audio_stream_end=True) after audio
   - Receive: response.server_content with input_transcription / output_transcription / turn_complete
 
+Output:
+  - All terminal output is simultaneously saved to scripts/gemini_probe_output.txt
+  - Overwritten each run
+
 Usage:
     python scripts/gemini_probe.py --audio test.wav --lang zh --lang-to en
 
 Environment:
     Set GEMINI_API_KEY or pass --api-key
-    Proxy: set HTTP_PROXY / HTTPS_PROXY before running
+    Proxy: set HTTP_PROXY / HTTPS_PROXY (default http://127.0.0.1:7897)
 """
 import argparse
 import asyncio
-import base64
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 # ─── Set proxy env BEFORE importing google-genai ───
 PROXY_URL = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY") or "http://127.0.0.1:7897"
@@ -36,6 +40,39 @@ os.environ["http_proxy"] = PROXY_URL
 os.environ["https_proxy"] = PROXY_URL
 os.environ["NO_PROXY"] = ""
 os.environ["no_proxy"] = ""
+
+# ─── Tee logger: write to both stdout and file ───
+SCRIPT_DIR = Path(__file__).parent.resolve()
+LOG_PATH = SCRIPT_DIR / "gemini_probe_output.txt"
+
+
+class TeeLogger:
+    """Redirect stdout/stderr to both console and a log file."""
+    def __init__(self, log_path):
+        self.log_path = log_path
+        self.log_file = open(log_path, "w", encoding="utf-8")
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        sys.stdout = self
+        sys.stderr = self
+
+    def write(self, data):
+        self.stdout.write(data)
+        self.log_file.write(data)
+        self.log_file.flush()
+
+    def flush(self):
+        self.stdout.flush()
+        self.log_file.flush()
+
+    def close(self):
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
+        self.log_file.close()
+
+    def isatty(self):
+        return False
+
 
 from google import genai
 from google.genai import types
@@ -104,7 +141,6 @@ def append_text_smart(parts, text):
 # ─── Probe state ───
 start_time = time.time()
 
-# Delta extraction state (same as Qwen probe2)
 prev_asr_text = ""
 prev_mt_text = ""
 asr_current_text = ""
@@ -112,18 +148,16 @@ mt_current_text = ""
 asr_last_sec = -1
 mt_last_sec = -1
 
-asr_segs = []   # (sent_ms, delta_text)
+asr_segs = []
 mt_segs = []
-asr_mt_end = []  # asr_mt_end[i] = len(mt_segs) when ASR seg #i locked
+asr_mt_end = []
 
-# Track full text for reconstruction
 asr_parts = []
 mt_parts = []
 
 session_finished = False
 last_useful_content_time = time.time()
 
-# Event stats
 event_counts = {}
 first_asr_time = None
 first_mt_time = None
@@ -161,6 +195,9 @@ def print_timeline():
         print(f"First ASR text at: {first_asr_time - start_time:.1f}s")
     if first_mt_time:
         print(f"First MT  text at: {first_mt_time - start_time:.1f}s")
+    if first_asr_time and first_mt_time:
+        delay = (first_mt_time - start_time) - (first_asr_time - start_time)
+        print(f"MT started {'before' if delay < 0 else 'after'} ASR by {abs(delay):.1f}s")
 
     print(f"\nASR segments: {len(asr_segs)}")
     for i, (ms, delta) in enumerate(asr_segs):
@@ -218,7 +255,6 @@ def build_client(api_key):
         "ping_timeout": 20,
     }
 
-    # Try adding proxy to websockets connect
     try:
         from websockets.asyncio.client import connect as ws_connect
         sig = inspect.signature(ws_connect)
@@ -246,7 +282,6 @@ def build_live_config(target_language):
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
     )
-    # Set extra field via __pydantic_extra__ — SDK will serialize it to the API
     config.__pydantic_extra__ = {
         "translation_config": {
             "echo_target_language": True,
@@ -272,17 +307,20 @@ async def run_probe(audio_path, target_language, api_key):
     print(f"[probe] model: {MODEL}")
     print(f"[probe] proxy: {PROXY_URL}")
     print(f"[probe] API key: {api_key[:6]}...{api_key[-4:]}")
+    print(f"[probe] log file: {LOG_PATH}")
 
     client = build_client(api_key)
     config = build_live_config(target_language)
 
     print(f"[probe] connecting to Gemini Live...")
 
+    current_sent_ms = 0
+
     async with client.aio.live.connect(model=MODEL, config=config) as session:
         print(f"[probe] connected OK!")
 
-        current_sent_ms = 0
-        start_time = time.time()
+        if hasattr(on_stream_start, '__call__'):
+            pass  # no callback in probe
 
         async def send_audio():
             nonlocal current_sent_ms
@@ -309,14 +347,12 @@ async def run_probe(audio_path, target_language, api_key):
                     print(f"[send] chunk {idx+1}/{total_chunks}  sent={current_sent_ms}ms")
                 await asyncio.sleep(CHUNK_MS / 1000.0)
 
-            # Send audio_stream_end
             try:
                 await session.send_realtime_input(audio_stream_end=True)
                 print("[send] audio_stream_end=True sent")
             except Exception as exc:
                 print(f"[WARNING] audio_stream_end failed: {exc}")
 
-            # Wait for tail outputs
             print(f"[probe] waiting up to {DRAIN_SECONDS_AFTER_SEND}s for tail output...")
             wait_start = time.time()
             while True:
@@ -324,7 +360,7 @@ async def run_probe(audio_path, target_language, api_key):
                     print("[probe] drain timeout reached")
                     break
                 idle = time.time() - (last_useful_content_time or wait_start)
-                if time.time() - start_time > total_ms / 1000 and idle >= IDLE_SECONDS_AFTER_SEND:
+                if idle >= IDLE_SECONDS_AFTER_SEND:
                     print(f"[probe] {IDLE_SECONDS_AFTER_SEND}s idle, stopping")
                     break
                 await asyncio.sleep(0.2)
@@ -344,7 +380,7 @@ async def run_probe(audio_path, target_language, api_key):
                     now = time.time()
                     etype = "server_content"
                     event_counts[etype] = event_counts.get(etype, 0) + 1
-                    sec = int(current_sent_ms / 1000) if 'current_sent_ms' in dir() else int((now - start_time))
+                    sec = int(current_sent_ms / 1000)
 
                     # Input transcription (ASR)
                     input_transcription = getattr(server_content, "input_transcription", None)
@@ -354,13 +390,11 @@ async def run_probe(audio_path, target_language, api_key):
                             first_asr_time = time.time()
                             print(f"[probe] *** FIRST ASR at {first_asr_time - start_time:.1f}s ***")
 
-                        # Use smart append to get cumulative text
                         append_text_smart(asr_parts, text)
                         asr_current_text = "".join(asr_parts)
 
-                        # Delta extraction (per second)
                         if asr_last_sec != -1 and sec != asr_last_sec:
-                            flush_asr_delta(current_sent_ms if 'current_sent_ms' in dir() else int((now - start_time) * 1000))
+                            flush_asr_delta(current_sent_ms)
                         asr_last_sec = sec
 
                         last_useful_content_time = now
@@ -378,13 +412,12 @@ async def run_probe(audio_path, target_language, api_key):
                         mt_current_text = "".join(mt_parts)
 
                         if mt_last_sec != -1 and sec != mt_last_sec:
-                            flush_mt_delta(current_sent_ms if 'current_sent_ms' in dir() else int((now - start_time) * 1000))
+                            flush_mt_delta(current_sent_ms)
                         mt_last_sec = sec
 
                         last_useful_content_time = now
                         print(f"[recv {now-start_time:.1f}s] MT: {text!r}")
 
-                    # Check turn_complete
                     if getattr(server_content, "turn_complete", False):
                         print(f"[probe] turn_complete received at {now-start_time:.1f}s")
                         session_finished = True
@@ -395,13 +428,11 @@ async def run_probe(audio_path, target_language, api_key):
             except Exception as exc:
                 print(f"[ERROR] receive: {type(exc).__name__}: {exc}")
 
-        # Run send and receive concurrently
         send_task = asyncio.create_task(send_audio())
         recv_task = asyncio.create_task(receive_responses())
 
         await send_task
 
-        # Wait a bit more for receive to finish
         if not recv_task.done():
             await asyncio.sleep(2)
             recv_task.cancel()
@@ -417,6 +448,10 @@ async def run_probe(audio_path, target_language, api_key):
         flush_mt_delta(0)
 
     print_timeline()
+
+
+def on_stream_start():
+    pass
 
 
 def main():
@@ -443,4 +478,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    tee = TeeLogger(LOG_PATH)
+    try:
+        main()
+    finally:
+        tee.close()

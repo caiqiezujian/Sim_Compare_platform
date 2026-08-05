@@ -1,0 +1,450 @@
+[probe] Gemini Live Translate probe
+[probe] audio: D:\Sim_Compare_platform\scripts\zh2en-01-tech_001.wav
+[probe] lang-to: en
+[probe] converting audio to 16kHz PCM...
+[probe] duration: 61209ms  chunks: 613 (100ms each)
+[probe] target_language: en
+[probe] model: gemini-3.5-live-translate-preview
+[probe] proxy: http://127.0.0.1:7897
+[probe] API key: AQ.Ab8...ADGA
+[probe] log file: D:\Sim_Compare_platform\scripts\gemini_probe_output.txt
+[probe] connecting to Gemini Live...
+[probe] connected OK!
+[send] chunk 1/613  sent=100ms
+[send] chunk 2/613  sent=200ms
+[send] chunk 3/613  sent=300ms
+[probe] *** FIRST ASR at 4.4s ***
+[recv 4.4s] ASR: '首先是这样啊,就是'
+[probe] *** FIRST MT at 4.6s ***
+[recv 4.6s] MT: "First of all, it's like"
+  [ASR SEG #1] t=3s  delta='首先是这样啊,就是我免责声明先'
+[recv 5.1s] ASR: '我免责声明先'
+  [MT  SEG #1] t=4s  delta="First of all, it's like this, I'll give a disclaimer"
+[recv 5.5s] MT: " this, I'll give a disclaimer"
+  [ASR SEG #2] t=4s  delta='对,我'
+[recv 6.2s] ASR: '对,我'
+[recv 6.3s] MT: ' first, yes,'
+[send] chunk 51/613  sent=5100ms
+  [ASR SEG #3] t=5s  delta='觉得我做到了'
+[recv 7.3s] ASR: '觉得我做到了'
+  [MT  SEG #2] t=6s  delta=" first, yes, I think I've achieved"
+[recv 7.6s] MT: " I think I've achieved"
+  [ASR SEG #4] t=6s  delta='比如说按一个'
+[recv 8.2s] ASR: '比如说按一个'
+[recv 8.5s] MT: ' something like,'
+  [ASR SEG #5] t=7s  delta='分数来'
+[recv 9.3s] ASR: '分数来'
+  [MT  SEG #3] t=7s  delta=' something like, for example, rating'
+[recv 9.6s] MT: ' for example, rating'
+  [ASR SEG #6] t=8s  delta='评的话,我可能做到了'
+[recv 10.4s] ASR: '评的话,我可能做到了'
+  [MT  SEG #4] t=8s  delta=' it on a scale, I'
+[recv 10.6s] MT: ' it on a scale, I'
+  [ASR SEG #7] t=9s  delta='70分,'
+[recv 11.4s] ASR: '70分,'
+  [MT  SEG #5] t=10s  delta=' might have achieved a 70,'
+[recv 11.7s] MT: ' might have achieved a 70,'
+[send] chunk 101/613  sent=10100ms
+  [ASR SEG #8] t=10s  delta='但是我不知'
+[recv 12.4s] ASR: '但是我不知'
+[recv 12.7s] MT: " but I don't"
+  [ASR SEG #9] t=11s  delta='道'
+[recv 13.5s] ASR: '道'
+  [MT  SEG #6] t=11s  delta=" but I don't know"
+[recv 13.8s] MT: ' know'
+  [ASR SEG #10] t=12s  delta='人能做到'
+[recv 14.8s] ASR: '人能做到'
+  [MT  SEG #7] t=12s  delta=' what people can'
+[recv 15.1s] MT: ' what people can'
+  [ASR SEG #11] t=13s  delta='多少分?'
+[recv 15.8s] ASR: '多少分?'
+  [MT  SEG #8] t=13s  delta=' achieve?'
+[recv 16.0s] MT: ' achieve?'
+  [ASR SEG #12] t=14s  delta='对,对,那那'
+[recv 16.9s] ASR: '对,对,那那'
+  [MT  SEG #9] t=14s  delta=' Right, right,'
+[recv 17.0s] MT: ' Right, right,'
+[send] chunk 151/613  sent=15100ms
+  [ASR SEG #13] t=15s  delta='80分肯定'
+[recv 18.1s] ASR: '80分肯定'
+  [MT  SEG #10] t=15s  delta=' then 80 points'
+[recv 18.3s] MT: ' then 80 points'
+  [ASR SEG #14] t=16s  delta='有更'
+[recv 19.2s] ASR: '有更'
+  [MT  SEG #11] t=16s  delta=' must have more'
+[recv 19.3s] MT: ' must have more'
+  [ASR SEG #15] t=17s  delta='加好的做'
+[recv 20.3s] ASR: '加好的做'
+  [MT  SEG #12] t=17s  delta=' better ways to'
+[recv 20.5s] MT: ' better ways to'
+  [ASR SEG #16] t=18s  delta='法,但是'
+[recv 21.3s] ASR: '法,但是'
+  [MT  SEG #13] t=18s  delta=' do it, but'
+[recv 21.5s] MT: ' do it, but'
+  [ASR SEG #17] t=19s  delta='我只能说我'
+[recv 22.6s] ASR: '我只能说我'
+  [MT  SEG #14] t=19s  delta=' I can only say'
+[recv 22.7s] MT: ' I can only say'
+[send] chunk 201/613  sent=20100ms
+  [ASR SEG #18] t=20s  delta='分享一些自己'
+[recv 23.6s] ASR: '分享一些自己'
+  [MT  SEG #15] t=20s  delta=" I'm sharing some of"
+[recv 23.8s] MT: " I'm sharing some of"
+  [ASR SEG #19] t=21s  delta='的learning的'
+[recv 24.6s] ASR: '的learning的'
+  [MT  SEG #16] t=21s  delta=' my learning experiences'
+[recv 24.7s] MT: ' my learning experiences'
+  [ASR SEG #20] t=22s  delta='体会,对对对,我我'
+[recv 25.8s] ASR: '体会,对对对,我我'
+  [MT  SEG #17] t=23s  delta=' and, yes,'
+[recv 26.1s] MT: ' and, yes,'
+  [ASR SEG #21] t=23s  delta='犯过很多'
+[recv 26.8s] ASR: '犯过很多'
+[recv 27.1s] MT: " I've made many"
+  [ASR SEG #22] t=24s  delta='错误,然后'
+[recv 27.9s] ASR: '错误,然后'
+  [MT  SEG #18] t=24s  delta=" I've made many mistakes, and"
+[recv 28.0s] MT: ' mistakes, and'
+[send] chunk 251/613  sent=25100ms
+  [ASR SEG #23] t=25s  delta='这个'
+[recv 28.9s] ASR: '这个'
+  [MT  SEG #19] t=26s  delta=' this'
+[recv 29.4s] MT: ' this'
+  [ASR SEG #24] t=26s  delta='成长学习了'
+[recv 30.0s] ASR: '成长学习了'
+[recv 30.3s] MT: ' growth has learned'
+  [ASR SEG #25] t=27s  delta='很多,所以只是'
+[recv 31.2s] ASR: '很多,所以只是'
+  [MT  SEG #20] t=27s  delta=' growth has learned a lot, so'
+[recv 31.3s] MT: ' a lot, so'
+  [ASR SEG #26] t=28s  delta='简单跟大家'
+[recv 32.3s] ASR: '简单跟大家'
+  [MT  SEG #21] t=28s  delta=" it's just to share"
+[recv 32.5s] MT: " it's just to share"
+  [ASR SEG #27] t=29s  delta='分享一下,就是还'
+[recv 33.3s] ASR: '分享一下,就是还'
+  [MT  SEG #22] t=29s  delta=' with everyone, that'
+[recv 33.6s] MT: ' with everyone, that'
+[send] chunk 301/613  sent=30100ms
+  [ASR SEG #28] t=30s  delta='还是就是我'
+[recv 34.5s] ASR: '还是就是我'
+  [MT  SEG #23] t=31s  delta=' is, I'
+[recv 34.9s] MT: ' is, I'
+  [ASR SEG #29] t=31s  delta='可能还是分子'
+[recv 35.5s] ASR: '可能还是分子'
+  [MT  SEG #24] t=32s  delta=' might still be the'
+[recv 36.0s] MT: ' might still be the'
+  [ASR SEG #30] t=32s  delta='的那部分,所以是有'
+[recv 36.8s] ASR: '的那部分,所以是有'
+  [MT  SEG #25] t=33s  delta=' molecular part,'
+[recv 37.0s] MT: ' molecular part,'
+  [ASR SEG #31] t=33s  delta='这个survival bias'
+[recv 37.6s] ASR: '这个survival bias'
+[recv 37.8s] MT: " so there's this survival"
+  [ASR SEG #32] t=34s  delta='的,我就'
+[recv 38.7s] ASR: '的,我就'
+  [MT  SEG #26] t=35s  delta=" so there's this survival bias, I"
+[recv 39.1s] MT: ' bias, I'
+[send] chunk 351/613  sent=35100ms
+  [ASR SEG #33] t=35s  delta='觉得广义上的'
+[recv 39.8s] ASR: '觉得广义上的'
+[recv 40.0s] MT: ' think in a broad'
+  [ASR SEG #34] t=36s  delta='管理,我们'
+[recv 40.9s] ASR: '管理,我们'
+  [MT  SEG #27] t=37s  delta=' think in a broad sense of management,'
+[recv 41.3s] MT: ' sense of management,'
+  [ASR SEG #35] t=37s  delta='可以'
+[recv 41.9s] ASR: '可以'
+[recv 42.3s] MT: ' we can'
+  [ASR SEG #36] t=38s  delta='去'
+[recv 43.0s] ASR: '去'
+  [MT  SEG #28] t=38s  delta=' we can go'
+[recv 43.3s] MT: ' go'
+  [ASR SEG #37] t=39s  delta='说很多方面,'
+[recv 44.2s] ASR: '说很多方面,'
+  [MT  SEG #29] t=39s  delta=' and talk about many'
+[recv 44.5s] MT: ' and talk about many'
+[send] chunk 401/613  sent=40100ms
+  [ASR SEG #38] t=40s  delta='然后'
+[recv 45.2s] ASR: '然后'
+  [MT  SEG #30] t=40s  delta=' aspects, and'
+[recv 45.5s] MT: ' aspects, and'
+  [ASR SEG #39] t=41s  delta='团队的管理'
+[recv 46.3s] ASR: '团队的管理'
+  [MT  SEG #31] t=41s  delta=' team management'
+[recv 46.6s] MT: ' team management'
+  [ASR SEG #40] t=42s  delta='是广义管理的一'
+[recv 47.5s] ASR: '是广义管理的一'
+  [MT  SEG #32] t=43s  delta=' is part of broad'
+[recv 47.8s] MT: ' is part of broad'
+  [ASR SEG #41] t=43s  delta='部分,但是呢确'
+[recv 48.5s] ASR: '部分,但是呢确'
+[recv 48.7s] MT: ' management, but'
+  [ASR SEG #42] t=44s  delta='实提到'
+[recv 49.7s] ASR: '实提到'
+  [MT  SEG #33] t=44s  delta=' management, but indeed, when it comes'
+[recv 49.8s] MT: ' indeed, when it comes'
+[send] chunk 451/613  sent=45100ms
+  [ASR SEG #43] t=45s  delta='团队的管理又'
+[recv 50.7s] ASR: '团队的管理又'
+  [MT  SEG #34] t=46s  delta=' to team management,'
+[recv 51.0s] MT: ' to team management,'
+  [ASR SEG #44] t=46s  delta='不得不提那个'
+[recv 51.6s] ASR: '不得不提那个'
+[recv 51.8s] MT: ' you have to mention'
+  [ASR SEG #45] t=47s  delta='广义上的管理,因为这些'
+[recv 52.7s] ASR: '广义上的管理,因为这些'
+  [MT  SEG #35] t=48s  delta=' you have to mention that broad management,'
+[recv 53.1s] MT: ' that broad management,'
+  [ASR SEG #46] t=48s  delta='是相关的,那我觉得'
+[recv 53.7s] ASR: '是相关的,那我觉得'
+[recv 54.0s] MT: ' because these are related,'
+  [ASR SEG #47] t=49s  delta='广义上的管理它可能'
+[recv 54.9s] ASR: '广义上的管理它可能'
+  [MT  SEG #36] t=49s  delta=' because these are related, and I think'
+[recv 55.1s] MT: ' and I think'
+[send] chunk 501/613  sent=50100ms
+  [ASR SEG #48] t=50s  delta='有第一个是'
+[recv 56.0s] ASR: '有第一个是'
+  [MT  SEG #37] t=51s  delta=' broad management'
+[recv 56.3s] MT: ' broad management'
+  [ASR SEG #49] t=51s  delta='战略上的管理,'
+[recv 57.0s] ASR: '战略上的管理,'
+[recv 57.3s] MT: ' has, first, strategic'
+  [ASR SEG #50] t=52s  delta='就是我们作为'
+[recv 58.1s] ASR: '就是我们作为'
+  [MT  SEG #38] t=52s  delta=' has, first, strategic management,'
+[recv 58.4s] MT: ' management,'
+  [ASR SEG #51] t=53s  delta='整个'
+[recv 59.2s] ASR: '整个'
+  [MT  SEG #39] t=53s  delta=' that is, as'
+[recv 59.5s] MT: ' that is, as'
+  [ASR SEG #52] t=54s  delta='部门'
+[recv 60.3s] ASR: '部门'
+  [MT  SEG #40] t=54s  delta=' a whole department,'
+[recv 60.5s] MT: ' a whole department,'
+[send] chunk 551/613  sent=55100ms
+  [ASR SEG #53] t=55s  delta='来说,整个'
+[recv 61.5s] ASR: '来说,整个'
+  [MT  SEG #41] t=55s  delta=' the whole'
+[recv 61.6s] MT: ' the whole'
+  [ASR SEG #54] t=56s  delta='大的团队来说,我们'
+[recv 62.5s] ASR: '大的团队来说,我们'
+  [MT  SEG #42] t=56s  delta=' large team, what'
+[recv 62.8s] MT: ' large team, what'
+  [ASR SEG #55] t=57s  delta='哪些'
+[recv 63.6s] ASR: '哪些'
+  [MT  SEG #43] t=58s  delta=' things should we'
+[recv 64.1s] MT: ' things should we'
+  [ASR SEG #56] t=58s  delta='事情在什么'
+[recv 64.8s] ASR: '事情在什么'
+[recv 65.0s] MT: ' do at what'
+  [ASR SEG #57] t=59s  delta='时候是需要做的'
+[recv 66.0s] ASR: '时候是需要做的'
+[send] chunk 601/613  sent=60100ms
+  [MT  SEG #44] t=60s  delta=' do at what time?'
+[recv 66.4s] MT: ' time?'
+  [ASR SEG #58] t=60s  delta='呢,哪些事情在短'
+[recv 67.0s] ASR: '呢,哪些事情在短'
+[recv 67.3s] MT: ' What things should we'
+[send] audio_stream_end=True sent
+[probe] waiting up to 15.0s for tail output...
+  [ASR SEG #59] t=61s  delta='期是不做'
+[recv 68.2s] ASR: '期是不做'
+  [MT  SEG #45] t=61s  delta=' What things should we not do in the short'
+[recv 68.5s] MT: ' not do in the short'
+[probe] 4.0s idle, stopping
+
+================================================================================
+DELTA SEGMENTATION SUMMARY
+================================================================================
+
+Event counts: {
+  "server_content": 522
+}
+First ASR text at: 4.4s
+First MT  text at: 4.6s
+MT started after ASR by 0.3s
+
+ASR segments: 59
+  #  1  t=   3s  '首先是这样啊,就是我免责声明先'
+  #  2  t=   4s  '对,我'
+  #  3  t=   5s  '觉得我做到了'
+  #  4  t=   6s  '比如说按一个'
+  #  5  t=   7s  '分数来'
+  #  6  t=   8s  '评的话,我可能做到了'
+  #  7  t=   9s  '70分,'
+  #  8  t=  10s  '但是我不知'
+  #  9  t=  11s  '道'
+  # 10  t=  12s  '人能做到'
+  # 11  t=  13s  '多少分?'
+  # 12  t=  14s  '对,对,那那'
+  # 13  t=  15s  '80分肯定'
+  # 14  t=  16s  '有更'
+  # 15  t=  17s  '加好的做'
+  # 16  t=  18s  '法,但是'
+  # 17  t=  19s  '我只能说我'
+  # 18  t=  20s  '分享一些自己'
+  # 19  t=  21s  '的learning的'
+  # 20  t=  22s  '体会,对对对,我我'
+  # 21  t=  23s  '犯过很多'
+  # 22  t=  24s  '错误,然后'
+  # 23  t=  25s  '这个'
+  # 24  t=  26s  '成长学习了'
+  # 25  t=  27s  '很多,所以只是'
+  # 26  t=  28s  '简单跟大家'
+  # 27  t=  29s  '分享一下,就是还'
+  # 28  t=  30s  '还是就是我'
+  # 29  t=  31s  '可能还是分子'
+  # 30  t=  32s  '的那部分,所以是有'
+  # 31  t=  33s  '这个survival bias'
+  # 32  t=  34s  '的,我就'
+  # 33  t=  35s  '觉得广义上的'
+  # 34  t=  36s  '管理,我们'
+  # 35  t=  37s  '可以'
+  # 36  t=  38s  '去'
+  # 37  t=  39s  '说很多方面,'
+  # 38  t=  40s  '然后'
+  # 39  t=  41s  '团队的管理'
+  # 40  t=  42s  '是广义管理的一'
+  # 41  t=  43s  '部分,但是呢确'
+  # 42  t=  44s  '实提到'
+  # 43  t=  45s  '团队的管理又'
+  # 44  t=  46s  '不得不提那个'
+  # 45  t=  47s  '广义上的管理,因为这些'
+  # 46  t=  48s  '是相关的,那我觉得'
+  # 47  t=  49s  '广义上的管理它可能'
+  # 48  t=  50s  '有第一个是'
+  # 49  t=  51s  '战略上的管理,'
+  # 50  t=  52s  '就是我们作为'
+  # 51  t=  53s  '整个'
+  # 52  t=  54s  '部门'
+  # 53  t=  55s  '来说,整个'
+  # 54  t=  56s  '大的团队来说,我们'
+  # 55  t=  57s  '哪些'
+  # 56  t=  58s  '事情在什么'
+  # 57  t=  59s  '时候是需要做的'
+  # 58  t=  60s  '呢,哪些事情在短'
+  # 59  t=  61s  '期是不做'
+
+MT segments: 45
+  #  1  t=   4s  "First of all, it's like this, I'll give a disclaimer"
+  #  2  t=   6s  " first, yes, I think I've achieved"
+  #  3  t=   7s  ' something like, for example, rating'
+  #  4  t=   8s  ' it on a scale, I'
+  #  5  t=  10s  ' might have achieved a 70,'
+  #  6  t=  11s  " but I don't know"
+  #  7  t=  12s  ' what people can'
+  #  8  t=  13s  ' achieve?'
+  #  9  t=  14s  ' Right, right,'
+  # 10  t=  15s  ' then 80 points'
+  # 11  t=  16s  ' must have more'
+  # 12  t=  17s  ' better ways to'
+  # 13  t=  18s  ' do it, but'
+  # 14  t=  19s  ' I can only say'
+  # 15  t=  20s  " I'm sharing some of"
+  # 16  t=  21s  ' my learning experiences'
+  # 17  t=  23s  ' and, yes,'
+  # 18  t=  24s  " I've made many mistakes, and"
+  # 19  t=  26s  ' this'
+  # 20  t=  27s  ' growth has learned a lot, so'
+  # 21  t=  28s  " it's just to share"
+  # 22  t=  29s  ' with everyone, that'
+  # 23  t=  31s  ' is, I'
+  # 24  t=  32s  ' might still be the'
+  # 25  t=  33s  ' molecular part,'
+  # 26  t=  35s  " so there's this survival bias, I"
+  # 27  t=  37s  ' think in a broad sense of management,'
+  # 28  t=  38s  ' we can go'
+  # 29  t=  39s  ' and talk about many'
+  # 30  t=  40s  ' aspects, and'
+  # 31  t=  41s  ' team management'
+  # 32  t=  43s  ' is part of broad'
+  # 33  t=  44s  ' management, but indeed, when it comes'
+  # 34  t=  46s  ' to team management,'
+  # 35  t=  48s  ' you have to mention that broad management,'
+  # 36  t=  49s  ' because these are related, and I think'
+  # 37  t=  51s  ' broad management'
+  # 38  t=  52s  ' has, first, strategic management,'
+  # 39  t=  53s  ' that is, as'
+  # 40  t=  54s  ' a whole department,'
+  # 41  t=  55s  ' the whole'
+  # 42  t=  56s  ' large team, what'
+  # 43  t=  58s  ' things should we'
+  # 44  t=  60s  ' do at what time?'
+  # 45  t=  61s  ' What things should we not do in the short'
+
+--------------------------------------------------------------------------------
+TIMELINE PAIRING (ASR + MT by segment index)
+--------------------------------------------------------------------------------
+   #  ASR time    MT range  ASR delta                                 MT delta
+   1      3700  0..   0  首先是这样啊,就是我免责声明先                           
+   2      4700  0..   1  对,我                                       First of all, it's like this, I'll giv..
+   3      5800  1..   1  觉得我做到了                                    
+   4      6600  1..   2  比如说按一个                                     first, yes, I think I've achieved
+   5      7700  2..   2  分数来                                       
+   6      8600  2..   3  评的话,我可能做到了                                 something like, for example, rating
+   7      9700  3..   4  70分,                                       it on a scale, I
+   8     10600  4..   5  但是我不知                                      might have achieved a 70,
+   9     11600  5..   5  道                                         
+  10     12700  5..   6  人能做到                                       but I don't know
+  11     13600  6..   7  多少分?                                       what people can
+  12     14600  7..   8  对,对,那那                                     achieve?
+  13     15700  8..   9  80分肯定                                      Right, right,
+  14     16700  9..  10  有更                                         then 80 points
+  15     17700  10..  11  加好的做                                       must have more
+  16     18600  11..  12  法,但是                                       better ways to
+  17     19800  12..  13  我只能说我                                      do it, but
+  18     20700  13..  14  分享一些自己                                     I can only say
+  19     21700  14..  15  的learning的                                 I'm sharing some of
+  20     22700  15..  16  体会,对对对,我我                                  my learning experiences
+  21     23600  16..  17  犯过很多                                       and, yes,
+  22     24600  17..  17  错误,然后                                     
+  23     25600  17..  18  这个                                         I've made many mistakes, and
+  24     26600  18..  19  成长学习了                                      this
+  25     27700  19..  19  很多,所以只是                                   
+  26     28700  19..  20  简单跟大家                                      growth has learned a lot, so
+  27     29600  20..  21  分享一下,就是还                                   it's just to share
+  28     30700  21..  22  还是就是我                                      with everyone, that
+  29     31600  22..  23  可能还是分子                                     is, I
+  30     32800  23..  24  的那部分,所以是有                                  might still be the
+  31     33600  24..  25  这个survival bias                            molecular part,
+  32     34600  25..  25  的,我就                                      
+  33     35600  25..  26  觉得广义上的                                     so there's this survival bias, I
+  34     36600  26..  26  管理,我们                                     
+  35     37500  26..  27  可以                                         think in a broad sense of management,
+  36     38500  27..  27  去                                         
+  37     39600  27..  28  说很多方面,                                     we can go
+  38     40600  28..  29  然后                                         and talk about many
+  39     41600  29..  30  团队的管理                                      aspects, and
+  40     42700  30..  31  是广义管理的一                                    team management
+  41     43700  31..  32  部分,但是呢确                                    is part of broad
+  42     44700  32..  32  实提到                                       
+  43     45700  32..  33  团队的管理又                                     management, but indeed, when it comes
+  44     46600  33..  34  不得不提那个                                     to team management,
+  45     47600  34..  34  广义上的管理,因为这些                               
+  46     48600  34..  35  是相关的,那我觉得                                  you have to mention that broad manage..
+  47     49700  35..  35  广义上的管理它可能                                 
+  48     50600  35..  36  有第一个是                                      because these are related, and I think
+  49     51600  36..  37  战略上的管理,                                    broad management
+  50     52600  37..  37  就是我们作为                                    
+  51     53600  37..  38  整个                                         has, first, strategic management,
+  52     54600  38..  39  部门                                         that is, as
+  53     55600  39..  40  来说,整个                                      a whole department,
+  54     56600  40..  41  大的团队来说,我们                                  the whole
+  55     57600  41..  42  哪些                                         large team, what
+  56     58700  42..  43  事情在什么                                      things should we
+  57     59700  43..  43  时候是需要做的                                   
+  58     60600  43..  44  呢,哪些事情在短                                   do at what time?
+  59     61300  44..  44  期是不做                                      
+
+--------------------------------------------------------------------------------
+RECONSTRUCTION CHECK
+--------------------------------------------------------------------------------
+ASR reconstructed (334 chars):
+  '首先是这样啊,就是我免责声明先对,我觉得我做到了比如说按一个分数来评的话,我可能做到了70分,但是我不知道人能做到多少分?对,对,那那80分肯定有更加好的做法,但是我只能说我分享一些自己的learning的体会,对对对,我我犯过很多错误,然后这个成长学习了很多,所以只是简单跟大家分享一下,就是还还是就是我可能还是分子的那部分,所以是有这个survival bias的,我就觉得广义上的管理,我们可以去说很多方面,然后团队的管理是广义管理的一部分,但是呢确实提到团队的管理又不得不提那个广义上的管理,因为这些是相关的,那我觉得广义上的管理它可能有第一个是战略上的管理,就是我们作为整个部门来说,整个大的团队来说,我们哪些事情在什么时候是需要做的呢,哪些事情在短期是不做'
+MT  reconstructed (962 chars):
+  "First of all, it's like this, I'll give a disclaimer first, yes, I think I've achieved something like, for example, rating it on a scale, I might have achieved a 70, but I don't know what people can achieve? Right, right, then 80 points must have more better ways to do it, but I can only say I'm sharing some of my learning experiences and, yes, I've made many mistakes, and this growth has learned a lot, so it's just to share with everyone, that is, I might still be the molecular part, so there's this survival bias, I think in a broad sense of management, we can go and talk about many aspects, and team management is part of broad management, but indeed, when it comes to team management, you have to mention that broad management, because these are related, and I think broad management has, first, strategic management, that is, as a whole department, the whole large team, what things should we do at what time? What things should we not do in the short"
+
+Total: 59 ASR segments, 45 MT segments
+[probe] done.

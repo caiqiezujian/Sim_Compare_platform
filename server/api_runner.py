@@ -741,7 +741,7 @@ def _run_huawei(
     chunks: List[Dict[str, Any]] = []
     sn_data: Dict[int, dict] = {}  # sn -> {asr, mt, start_ms, end_ms, asr_start_ms, mt_end_ms}
     server_conference_id = ""
-    session_finished = False
+    state = {"finished": False}  # use dict for cross-thread access
     last_event_time = time.time()
     lock = threading.Lock()
     current_sent_ms = 0
@@ -768,7 +768,7 @@ def _run_huawei(
         push_update()
 
     def on_message(ws, message):
-        nonlocal server_conference_id, session_finished, last_event_time, current_sent_ms
+        nonlocal server_conference_id, last_event_time, current_sent_ms
         if isinstance(message, bytes):
             return
         try:
@@ -789,9 +789,9 @@ def _run_huawei(
 
                 # Heartbeat
                 def heartbeat():
-                    while not session_finished:
+                    while not state["finished"]:
                         time.sleep(30)
-                        if not session_finished:
+                        if not state["finished"]:
                             try:
                                 ws.send(json.dumps({"beat": True}))
                             except Exception:
@@ -833,7 +833,7 @@ def _run_huawei(
                 # Wait for final results (max 15s after audio done)
                 wait_deadline = time.time() + 15
                 while time.time() < wait_deadline:
-                    if session_finished:
+                    if state["finished"]:
                         break
                     # Check if no new text events for 5s
                     if time.time() - last_event_time > 5 and last_event_time > 0:
@@ -842,7 +842,7 @@ def _run_huawei(
                     time.sleep(0.5)
 
                 # Force close WebSocket
-                session_finished = True
+                state["finished"] = True
                 try:
                     ws.close()
                     logger.info("Huawei WebSocket closed after audio done")
@@ -858,6 +858,7 @@ def _run_huawei(
 
         # Text message
         if obj.get("msgType") == "text":
+            last_event_time = time.time()
             sn = obj.get("sn", 0)
             st = obj.get("sentenceType", 0)
             text = (obj.get("text") or "").strip()
@@ -914,8 +915,7 @@ def _run_huawei(
         logger.warning("Huawei WebSocket error: %s: %s", type(error).__name__, error)
 
     def on_close(ws, code, reason):
-        nonlocal session_finished
-        session_finished = True
+        state["finished"] = True
         logger.info("Huawei WebSocket closed: code=%s reason=%s", code, reason)
 
     def on_open(ws):
@@ -929,21 +929,24 @@ def _run_huawei(
         on_close=on_close,
     )
 
-    # Watchdog — close after 15s idle
+    # Watchdog — only check idle AFTER audio is fully sent (current_sent_ms >= total_ms)
+    # During audio sending, Huawei may have long gaps between text events (normal)
     def watchdog():
         time.sleep(10)
-        deadline = time.time() + 120
+        deadline = time.time() + 300  # 5 min max
         while time.time() < deadline:
-            if session_finished:
+            if state["finished"]:
                 break
-            if time.time() - last_event_time > 15:
-                logger.warning("Huawei watchdog: 15s no events, closing")
-                try:
-                    ws.close()
-                except Exception:
-                    pass
-                break
-            time.sleep(1)
+            # Only check idle after audio sending is done
+            if current_sent_ms >= total_ms:
+                if time.time() - last_event_time > 15:
+                    logger.warning("Huawei watchdog: 15s no events after audio done, closing")
+                    try:
+                        ws.close()
+                    except Exception:
+                        pass
+                    break
+            time.sleep(2)
 
     threading.Thread(target=watchdog, daemon=True).start()
     ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE}, ping_interval=30, ping_timeout=10)
@@ -1462,14 +1465,13 @@ def _run_gemini(
         parts.append(text)
 
     def _build_client():
-        # Set proxy env before importing
-        proxy = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY") or ""
-        if proxy:
-            for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
-                        "http_proxy", "https_proxy", "all_proxy"):
-                os.environ[key] = proxy
-            os.environ["NO_PROXY"] = ""
-            os.environ["no_proxy"] = ""
+        # Set proxy env before importing — fallback to default local proxy if not set
+        proxy = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY") or "http://127.0.0.1:7897"
+        for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+                    "http_proxy", "https_proxy", "all_proxy"):
+            os.environ[key] = proxy
+        os.environ["NO_PROXY"] = ""
+        os.environ["no_proxy"] = ""
 
         from google import genai
         from google.genai import types

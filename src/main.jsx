@@ -333,7 +333,7 @@ function App() {
     let pollStartTime = Date.now()
     let lastProgressTime = Date.now()
     let lastProgressValue = 0
-    const MAX_POLL_DURATION = 300000  // 5 min max polling
+    const MAX_POLL_DURATION = 600000  // 10 min max polling
     const STALL_THRESHOLD = 60000     // 60s no progress change = stalled
 
     const poll = async () => {
@@ -389,8 +389,9 @@ function App() {
           notify(`任务执行失败：${run.error || '请查看后端窗口日志'}`)
         } else if (run.progress >= 100 || run.stage === 'translating') {
           setRunning(false)
-          // Keep polling for final results — but check stall
-          if (Date.now() - lastProgressTime > STALL_THRESHOLD) {
+          // Only check stall when progress has reached 100% (translating phase)
+          // During streaming phase, progress may legitimately stall if the API service is slow
+          if (newProgress >= 100 && Date.now() - lastProgressTime > STALL_THRESHOLD) {
             setServerRunId(null)
             notify('翻译结果等待超时，已保留当前结果')
           }

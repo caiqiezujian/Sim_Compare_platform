@@ -330,6 +330,10 @@ def _run_qwen_sync(
             chunk = pcm[idx * QWEN_CHUNK_BYTES:(idx + 1) * QWEN_CHUNK_BYTES]
             if not chunk:
                 break
+            send_start = time.time()
+            current_sent_ms = (idx + 1) * QWEN_CHUNK_MS
+            if on_audio_progress:
+                on_audio_progress(current_sent_ms, total_ms)
             try:
                 ws.send(json.dumps({
                     "event_id": f"evt_{int(time.time()*1000)}_{idx}",
@@ -339,12 +343,12 @@ def _run_qwen_sync(
             except Exception as exc:
                 logger.warning("Qwen send failed at chunk %d: %s", idx + 1, exc)
                 break
-            current_sent_ms = (idx + 1) * QWEN_CHUNK_MS
-            if on_audio_progress:
-                on_audio_progress(current_sent_ms, total_ms)
             if idx % 50 == 0 or idx < 3:
                 logger.info("Qwen sending chunk %d/%d  sent=%dms", idx + 1, total_chunks, current_sent_ms)
-            time.sleep(QWEN_CHUNK_MS / 1000.0)
+            send_elapsed = time.time() - send_start
+            sleep_time = QWEN_CHUNK_MS / 1000.0 - send_elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
         # Send 3s ending silence (helps VAD detect end of speech)
         silence = b"\x00" * QWEN_CHUNK_BYTES
@@ -570,14 +574,14 @@ def _run_doubao(
                         if not chunk:
                             break
                         req = build_request(Type.TaskRequest, chunk)
+                        current_sent_ms = int((idx + 1) * DOUBAO_CHUNK_BYTES / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
+                        if on_audio_progress:
+                            on_audio_progress(current_sent_ms, total_ms)
                         try:
                             ws.send(req.SerializeToString(), opcode=ws_client.ABNF.OPCODE_BINARY)
                         except Exception as exc:
                             logger.warning("Doubao send failed at chunk %d: %s", idx + 1, exc)
                             break
-                        current_sent_ms = int((idx + 1) * DOUBAO_CHUNK_BYTES / BYTES_PER_SAMPLE / SAMPLE_RATE * 1000)
-                        if on_audio_progress:
-                            on_audio_progress(current_sent_ms, total_ms)
                         if idx % 50 == 0 or idx < 3:
                             logger.info("Doubao sending chunk %d/%d  sent=%dms", idx + 1, total_chunks, current_sent_ms)
                         time.sleep(0.1)
@@ -804,6 +808,10 @@ def _run_huawei(
                     if not chunk:
                         break
                     seq += 1
+                    send_start = time.time()
+                    current_sent_ms = int(seq * HW_CHUNK_MS)
+                    if on_audio_progress:
+                        on_audio_progress(current_sent_ms, total_ms)
                     try:
                         b64 = base64.b64encode(chunk).decode()
                         ws.send(json.dumps({
@@ -814,12 +822,12 @@ def _run_huawei(
                     except Exception as exc:
                         logger.warning("Huawei send failed at seq %d: %s", seq, exc)
                         break
-                    current_sent_ms = int(seq * HW_CHUNK_MS)
-                    if on_audio_progress:
-                        on_audio_progress(current_sent_ms, total_ms)
                     if seq % 50 == 0 or seq <= 3:
                         logger.info("Huawei sending seq=%d/%d sent=%dms", seq, total_chunks, current_sent_ms)
-                    time.sleep(HW_CHUNK_MS / 1000.0)
+                    send_elapsed = time.time() - send_start
+                    sleep_time = HW_CHUNK_MS / 1000.0 - send_elapsed
+                    if sleep_time > 0:
+                        time.sleep(sleep_time)
 
                 logger.info("Huawei audio done, waiting for results...")
 
@@ -1186,6 +1194,10 @@ def _run_openai(
                 chunk = pcm[idx * OPENAI_CHUNK_BYTES:(idx + 1) * OPENAI_CHUNK_BYTES]
                 if not chunk:
                     break
+                send_start = time.time()
+                current_sent_ms = int((idx + 1) * OPENAI_CHUNK_MS)
+                if on_audio_progress:
+                    on_audio_progress(current_sent_ms, total_ms)
                 try:
                     audio_b64 = base64.b64encode(chunk).decode("ascii")
                     ws.send(json.dumps({
@@ -1195,12 +1207,12 @@ def _run_openai(
                 except Exception as exc:
                     logger.warning("OpenAI send failed at chunk %d: %s", idx + 1, exc)
                     break
-                current_sent_ms = int((idx + 1) * OPENAI_CHUNK_MS)
-                if on_audio_progress:
-                    on_audio_progress(current_sent_ms, total_ms)
                 if idx % 50 == 0 or idx < 3:
                     logger.info("OpenAI sending chunk %d/%d sent=%dms", idx + 1, total_chunks, current_sent_ms)
-                time.sleep(OPENAI_CHUNK_MS / 1000.0)
+                send_elapsed = time.time() - send_start
+                sleep_time = OPENAI_CHUNK_MS / 1000.0 - send_elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
 
             # Send 3s trailing silence
             silence = b"\x00" * OPENAI_CHUNK_BYTES
@@ -1510,6 +1522,9 @@ def _run_gemini(
                     chunk = pcm[idx * GEMINI_CHUNK_BYTES:(idx + 1) * GEMINI_CHUNK_BYTES]
                     if not chunk:
                         break
+                    current_sent_ms = (idx + 1) * GEMINI_CHUNK_MS
+                    if on_audio_progress:
+                        on_audio_progress(current_sent_ms, total_ms)
                     try:
                         from google.genai import types as gtypes
                         await session.send_realtime_input(
@@ -1521,9 +1536,6 @@ def _run_gemini(
                     except Exception as exc:
                         logger.warning("Gemini send failed at chunk %d: %s", idx + 1, exc)
                         break
-                    current_sent_ms = (idx + 1) * GEMINI_CHUNK_MS
-                    if on_audio_progress:
-                        on_audio_progress(current_sent_ms, total_ms)
                     if idx % 50 == 0 or idx < 3:
                         logger.info("Gemini sending chunk %d/%d sent=%dms", idx + 1, total_chunks, current_sent_ms)
                     await asyncio.sleep(GEMINI_CHUNK_MS / 1000.0)

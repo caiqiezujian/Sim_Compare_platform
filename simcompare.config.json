@@ -3,7 +3,7 @@
     "left": {
       "label": "线上稳定版",
       "type": "grpc",
-      "grpc_url": "10.185.1.71:16552",
+      "grpc_url": "10.185.1.71:16562",
       "debug_log": "",
       "debug_root": ""
     },

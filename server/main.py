@@ -39,6 +39,11 @@ DIST_DIR = ROOT_DIR / "dist"
 RUNS: Dict[str, dict] = {}
 UPLOADS: Dict[str, dict] = {}
 logger = logging.getLogger("simcompare")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 app = FastAPI(title="SimCompare API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -335,8 +340,11 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             def update_side(side: str, rows: list):
                 if should_stop():
                     return
+                old_count = len(run.get(side, []))
                 run[side] = rows
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
+                if len(rows) != old_count:
+                    logger.info("UPDATE_SIDE run_id=%s side=%s %d→%d chunks", run_id, side, old_count, len(rows))
 
             def mark_stream_started():
                 if not run.get("stream_started"):
@@ -393,6 +401,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                                 if isinstance(ext, dict) and ext.get("type", "").lower() == stype:
                                     api_key = str(ext.get("api_key") or "").strip()
                                     break
+                        logger.info("RUN SIDE run_id=%s side=%s type=%s api_key=%s", run_id, side, stype, f"{api_key[:6]}...{api_key[-4:]}" if len(api_key) > 10 else ("EMPTY" if not api_key else "SHORT"))
                         if not api_key:
                             label = system.get("label") if isinstance(system, dict) else stype
                             msg = f"{stype.upper()}（{label or 'API'}）未配置 API Key，请在服务设置中填写"
@@ -477,6 +486,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 right = results[1] if len(results) > 1 else results[0]
             else:
                 right = []
+            logger.info("RUN DONE run_id=%s left=%d_chunks right=%d_chunks left_error=%s right_error=%s", run_id, len(left), len(right), run.get("left_error",""), run.get("right_error",""))
             if should_stop():
                 run["status"] = "cancelled"
                 run["stage"] = "cancelled"
@@ -818,6 +828,7 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
     conference_id = conference_id.strip() or f"simcompare_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
     RUNS[run_id] = {"run_id": run_id, "conference_id": conference_id, "status": "queued", "stage": "queued", "progress": 0, "completed_chunks": 0, "audio_sent_ms": 0, "audio_total_ms": 0, "audio_progress": {}, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False, "created_at": time.time()}
+    logger.info("RUN START run_id=%s direction=%s systems=%s audio=%s is_temp=%s", run_id, direction, json.dumps(parsed_systems, ensure_ascii=False), video_path, is_temp)
     background_tasks.add_task(process_run, run_id, video_path, parsed_systems, direction, conference_id, is_temp)
     return {"run_id": run_id, "status": "queued", "conference_id": conference_id}
 
@@ -879,7 +890,10 @@ async def get_chunks(run_id: str):
     run = RUNS.get(run_id)
     if not run:
         return JSONResponse(status_code=404, content={"detail": "run not found"})
-    return {"left": run.get("left", []), "right": run.get("right", [])}
+    left = run.get("left", [])
+    right = run.get("right", [])
+    logger.info("CHUNKS run_id=%s left=%d right=%d status=%s progress=%s", run_id, len(left), len(right), run.get("status"), run.get("progress"))
+    return {"left": left, "right": right}
 
 
 @app.get("/api/runs/{run_id}/export")

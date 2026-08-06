@@ -365,17 +365,16 @@ function App() {
           setMediaArmedRunId(null)
           playSourceMediaFromStart()
         }
-        const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
-        if (chunksResponse.ok) {
-          const chunks = await chunksResponse.json()
-          if (Array.isArray(chunks.left)) setLeftItems(chunks.left)
-          if (Array.isArray(chunks.right)) setRightItems(chunks.right)
-        }
+        // Chunks fetch — separate try/catch so chunks errors don't kill polling
+        try {
+          const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
+          if (chunksResponse.ok) {
+            const chunks = await chunksResponse.json()
+            if (Array.isArray(chunks.left)) setLeftItems(chunks.left)
+            if (Array.isArray(chunks.right)) setRightItems(chunks.right)
+          }
+        } catch (e) { /* chunks fetch failed, skip this cycle */ }
         if (run.status === 'completed') {
-          setRunning(false)
-          setServerRunId(null)
-          notify('对比任务完成')
-        } else if (run.status === 'cancelled') {
           setRunning(false)
           setServerRunId(null)
           notify('任务已停止')

@@ -188,6 +188,7 @@ function App() {
   const [mediaMuted, setMediaMuted] = useState(false)
   const [mediaPlaying, setMediaPlaying] = useState(false)
   const [mediaArmedRunId, setMediaArmedRunId] = useState(null)
+  const mediaArmedRunIdRef = useRef(null)
   const [uploadId, setUploadId] = useState('')
   // When new chunks stream in, the timeline keeps growing.  If the user
   // already scrolled away from the bottom (e.g. to read the inspector) we
@@ -210,6 +211,7 @@ function App() {
   const fullscreenListRef = useRef(null)
   const fileInputRef = useRef(null)
   const mediaRef = useRef(null)
+  const serverRunIdRef = useRef('')
   const handleTimelineScroll = event => {
     const el = event.currentTarget
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
@@ -361,20 +363,19 @@ function App() {
           lastProgressValue = newProgress
           lastProgressTime = Date.now()
         }
-        if (run.stream_started && mediaArmedRunId === serverRunId) {
+        if (run.stream_started && mediaArmedRunIdRef.current === serverRunId) {
+          mediaArmedRunIdRef.current = null
           setMediaArmedRunId(null)
           playSourceMediaFromStart()
         }
-        // Chunks fetch — separate try/catch so chunks errors don't kill polling
-        try {
-          const chunksResponse = await fetch(`${API_BASE}/api/runs/${serverRunId}/chunks`)
-          if (chunksResponse.ok) {
-            const chunks = await chunksResponse.json()
-            if (Array.isArray(chunks.left)) setLeftItems(chunks.left)
-            if (Array.isArray(chunks.right)) setRightItems(chunks.right)
-          }
-        } catch (e) { /* chunks fetch failed, skip this cycle */ }
+        // Chunks are now inline in the run response (single request, no separate fetch)
+        if (Array.isArray(run.left)) setLeftItems(run.left)
+        if (Array.isArray(run.right)) setRightItems(run.right)
         if (run.status === 'completed') {
+          setRunning(false)
+          setServerRunId(null)
+          notify('对比任务完成')
+        } else if (run.status === 'cancelled') {
           setRunning(false)
           setServerRunId(null)
           notify('任务已停止')
@@ -386,11 +387,9 @@ function App() {
           setRunning(false)
           setServerRunId(null)
           notify(`任务执行失败：${run.error || '请查看后端窗口日志'}`)
-        } else if (run.progress >= 100 || run.stage === 'translating') {
+        } else if (run.progress >= 100) {
           setRunning(false)
-          // Only check stall when progress has reached 100% (translating phase)
-          // During streaming phase, progress may legitimately stall if the API service is slow
-          if (newProgress >= 100 && Date.now() - lastProgressTime > STALL_THRESHOLD) {
+          if (Date.now() - lastProgressTime > STALL_THRESHOLD) {
             setServerRunId(null)
             notify('翻译结果等待超时，已保留当前结果')
           }
@@ -406,9 +405,9 @@ function App() {
       }
     }
     poll()
-    const timer = window.setInterval(poll, 200)
+    const timer = window.setInterval(poll, 500)
     return () => { disposed = true; window.clearInterval(timer) }
-  }, [serverRunId, mediaArmedRunId, mediaMuted])
+  }, [serverRunId])
 
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]

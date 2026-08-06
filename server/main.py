@@ -343,6 +343,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 old_count = len(run.get(side, []))
                 run[side] = rows
                 run["completed_chunks"] = max(len(run.get("left", [])), len(run.get("right", [])))
+                run["last_chunk_update_time"] = time.time()
                 if len(rows) != old_count:
                     logger.info("UPDATE_SIDE run_id=%s side=%s %d→%d chunks", run_id, side, old_count, len(rows))
 
@@ -468,12 +469,61 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             if "right" in side_map:
                 tasks.append(asyncio.to_thread(run_side, "right", system_endpoint(side_map["right"]), side_map["right"]))
 
-            # return_exceptions=True: one side failing doesn't cancel the other
-            raw_results = await asyncio.gather(*tasks, return_exceptions=True) if tasks else []
+            # Completion watchdog: after progress hits 100%, if no new chunks for 10s, force complete
+            # This prevents tasks from staying "running" forever when adapter WebSocket drain takes too long
+            async def completion_watchdog():
+                while not should_stop():
+                    await asyncio.sleep(2)
+                    if run.get("status") not in (None, "queued", "running"):
+                        return  # already finished
+                    if run.get("progress", 0) >= 100:
+                        last_update = run.get("last_chunk_update_time", 0)
+                        if last_update > 0 and time.time() - last_update > 10:
+                            logger.info("WATCHDOG: auto-completing run_id=%s (no new chunks for 10s after progress 100%%)", run_id)
+                            run["status"] = "completed"
+                            run["stage"] = "completed"
+                            return
+                        # Also force complete if 30s passed since progress hit 100% (regardless of chunk updates)
+                        if hasattr(run, '_progress_100_time') and time.time() - run.get("_progress_100_time", 0) > 30:
+                            logger.info("WATCHDOG: force-completing run_id=%s (30s after progress 100%%)", run_id)
+                            run["status"] = "completed"
+                            run["stage"] = "completed"
+                            return
+
+            # Track when progress first hits 100%
+            def check_progress_100():
+                if run.get("progress", 0) >= 100 and "_progress_100_time" not in run:
+                    run["_progress_100_time"] = time.time()
+
+            watchdog_task = asyncio.create_task(completion_watchdog())
+            gather_task = asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
+
+            # Wait for either gather to complete or watchdog to force-complete
+            done, pending = await asyncio.wait(
+                [gather_task, watchdog_task],
+                return_when=asyncio.FIRST_COMPLETED,
+                timeout=600,  # 10 min absolute max
+            )
+
+            # Cancel whatever is still running
+            for t in pending:
+                t.cancel()
+                try:
+                    await t
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+            # Get results from gather if it completed
+            raw_results = []
+            if gather_task in done and not gather_task.cancelled():
+                try:
+                    raw_results = gather_task.result()
+                except Exception:
+                    raw_results = []
             
             # Map results back to sides (handle exceptions)
             results = []
-            for r in raw_results:
+            for r in raw_results if isinstance(raw_results, list) else []:
                 if isinstance(r, Exception):
                     logger.warning("run_side raised: %s: %s", type(r).__name__, r)
                     results.append([])
@@ -486,24 +536,32 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 right = results[1] if len(results) > 1 else results[0]
             else:
                 right = []
-            logger.info("RUN DONE run_id=%s left=%d_chunks right=%d_chunks left_error=%s right_error=%s", run_id, len(left), len(right), run.get("left_error",""), run.get("right_error",""))
+            logger.info("RUN DONE run_id=%s left=%d_chunks right=%d_chunks left_error=%s right_error=%s status=%s", run_id, len(left), len(right), run.get("left_error",""), run.get("right_error",""), run.get("status"))
             if should_stop():
                 run["status"] = "cancelled"
                 run["stage"] = "cancelled"
                 run["left"], run["right"] = left, right
                 return
-            run["left"], run["right"] = left, right
-            run["progress"] = 100
-            run["completed_chunks"] = max(len(left), len(right))
-            if run.get("left_error") or run.get("right_error"):
-                errors = [run.get("left_error"), run.get("right_error")]
-                run["error"] = " | ".join(error for error in errors if error)
-                both_failed = run.get("left_error") and (not has_right or run.get("right_error"))
-                run["status"] = "failed" if both_failed else "partial_completed"
-                run["stage"] = run["status"]
+            # Only set status if not already set by watchdog
+            if run.get("status") not in ("completed", "partial_completed", "failed"):
+                run["left"], run["right"] = left, right
+                run["progress"] = 100
+                run["completed_chunks"] = max(len(left), len(right))
+                if run.get("left_error") or run.get("right_error"):
+                    errors = [run.get("left_error"), run.get("right_error")]
+                    run["error"] = " | ".join(error for error in errors if error)
+                    both_failed = run.get("left_error") and (not has_right or run.get("right_error"))
+                    run["status"] = "failed" if both_failed else "partial_completed"
+                    run["stage"] = run["status"]
+                else:
+                    run["status"] = "completed"
+                    run["stage"] = "completed"
             else:
-                run["status"] = "completed"
-                run["stage"] = "completed"
+                # Watchdog already set status — just ensure left/right are populated
+                if not run.get("left"):
+                    run["left"] = left
+                if not run.get("right"):
+                    run["right"] = right
             return
 
         # Safe local fallback while generated protobuf modules or real mode are absent.
@@ -860,7 +918,24 @@ async def get_run(run_id: str):
     run = RUNS.get(run_id)
     if not run:
         return JSONResponse(status_code=404, content={"detail": "run not found"})
-    return run
+    # Include chunks inline to avoid separate fetch (reduces HTTP connections)
+    return {
+        "run_id": run_id,
+        "status": run.get("status", "unknown"),
+        "stage": run.get("stage", ""),
+        "progress": run.get("progress", 0),
+        "completed_chunks": run.get("completed_chunks", 0),
+        "conference_id": run.get("conference_id", ""),
+        "direction": run.get("direction", ""),
+        "systems": run.get("systems", []),
+        "stream_started": run.get("stream_started", False),
+        "audio_sent_ms": run.get("audio_sent_ms", 0),
+        "audio_total_ms": run.get("audio_total_ms", 0),
+        "error": run.get("error"),
+        "left": run.get("left", []),
+        "right": run.get("right", []),
+        "created_at": run.get("created_at", 0),
+    }
 
 
 @app.post("/api/runs/{run_id}/cancel")

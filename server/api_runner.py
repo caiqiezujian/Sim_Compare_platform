@@ -771,7 +771,6 @@ def _run_huawei(
         nonlocal server_conference_id, session_finished, last_event_time, current_sent_ms
         if isinstance(message, bytes):
             return
-        last_event_time = time.time()
         try:
             obj = json.loads(message)
         except Exception:
@@ -829,7 +828,26 @@ def _run_huawei(
                     if sleep_time > 0:
                         time.sleep(sleep_time)
 
-                logger.info("Huawei audio done, waiting for results...")
+                logger.info("Huawei audio done, waiting for final results...")
+
+                # Wait for final results (max 15s after audio done)
+                wait_deadline = time.time() + 15
+                while time.time() < wait_deadline:
+                    if session_finished:
+                        break
+                    # Check if no new text events for 5s
+                    if time.time() - last_event_time > 5 and last_event_time > 0:
+                        logger.info("Huawei: 5s no text events after audio done, closing")
+                        break
+                    time.sleep(0.5)
+
+                # Force close WebSocket
+                session_finished = True
+                try:
+                    ws.close()
+                    logger.info("Huawei WebSocket closed after audio done")
+                except Exception:
+                    pass
 
             threading.Thread(target=send_audio, daemon=True).start()
             return

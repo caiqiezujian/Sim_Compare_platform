@@ -104,3 +104,29 @@ def save_config(payload: Dict[str, Any]) -> Dict[str, Any]:
             pass
         raise
     return reload_config()
+
+
+def update_external_service(stype: str, label: str = "", api_key: str = "") -> Dict[str, Any]:
+    """Update a single external service in config by type.
+
+    If api_key is empty, keep the existing one (user left it blank in the UI).
+    If the type doesn't exist yet, append a new entry.
+    """
+    services = external_services_config()
+    found = False
+    for item in services:
+        if isinstance(item, dict) and item.get("type", "").lower() == stype.lower():
+            if label:
+                item["label"] = label
+            if api_key:
+                item["api_key"] = api_key
+            found = True
+            break
+    if not found:
+        services.append({"label": label or stype, "type": stype, "api_key": api_key})
+
+    CONFIG["external_services"] = services
+    # Persist to file
+    full_config = {k: v for k, v in CONFIG.items() if not k.startswith("_")}
+    save_config(full_config)
+    return CONFIG

@@ -380,6 +380,10 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 .service-dot.cyan   { background: var(--cyan); }
 .service-dot.violet { background: var(--violet); }
 .service-dot.amber  { background: var(--amber); }
+.service-dot.green  { background: #18794e; }
+.service-dot.pink   { background: #d63384; }
+.service-dot.teal   { background: #0d9488; }
+.service-dot:not(.cyan):not(.violet):not(.amber):not(.green):not(.pink):not(.teal) { background: var(--text-3); }
 
 /* ============ Sidebar: collapsible service groups ============ */
 .service-folder { margin-bottom: 2px; }
@@ -571,7 +575,7 @@ input, textarea { border: 0; outline: 0; background: transparent; }
 
 .dropzone {
   display: flex; align-items: center; gap: 10px;
-  width: 100%;
+  flex: 1;
   padding: 10px 12px;
   border: 1px dashed var(--border-strong);
   border-radius: 6px;
@@ -579,6 +583,20 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   text-align: left;
   transition: all .12s ease;
 }
+.source-actions { display: flex; gap: 8px; align-items: stretch; }
+.server-pick-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all .12s ease;
+}
+.server-pick-btn:hover { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-soft); }
 .dropzone:hover, .dropzone.has-file {
   border-color: var(--cyan);
   background: var(--cyan-soft);
@@ -1074,6 +1092,29 @@ input, textarea { border: 0; outline: 0; background: transparent; }
   transition: all .12s ease;
 }
 .history-row:hover { border-color: var(--cyan); background: var(--cyan-soft); }
+.history-row.active-replay { border-color: var(--cyan); background: var(--cyan-soft); }
+.history-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.history-go { flex-shrink: 0; color: var(--text-3); }
+.history-row:hover .history-go { color: var(--cyan); }
+.history-delete-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border: none; border-radius: 5px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.history-delete-btn:hover { background: #fce8e8; color: #e0556a; }
+.replay-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; margin-bottom: 14px;
+  border: 1px solid var(--cyan-border); border-radius: 8px;
+  background: var(--cyan-soft);
+  font-size: 13px; color: var(--text-2);
+}
+.replay-banner strong { font-weight: 600; color: var(--text); }
+.replay-banner .ghost-button { margin-left: auto; padding: 4px 12px; font-size: 12px; }
 .status-dot {
   flex-shrink: 0;
   padding: 3px 9px;

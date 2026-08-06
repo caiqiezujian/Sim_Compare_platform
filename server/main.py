@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import (
@@ -307,7 +307,7 @@ def debug_audio_path(debug_root: Path, conference_id: str, chunk_id: str, log_de
     return candidate if candidate.exists() else None
 
 
-async def process_run(run_id: str, video_path: str, systems: list, direction: str, conference_id: str):
+async def process_run(run_id: str, video_path: str, systems: list, direction: str, conference_id: str, is_temp: bool = True):
     run = RUNS[run_id]
     run["status"] = "running"
     try:
@@ -354,7 +354,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
                 if not available:
                     return
                 total = max((item.get("total_ms") or 0) for item in available)
-                sent = min((item.get("sent_ms") or 0) for item in available)
+                sent = max((item.get("sent_ms") or 0) for item in available)
                 run["audio_sent_ms"] = sent
                 run["audio_total_ms"] = total
                 # Progress is purely audio-based: 0-100% based on audio sent
@@ -459,10 +459,24 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             if "right" in side_map:
                 tasks.append(asyncio.to_thread(run_side, "right", system_endpoint(side_map["right"]), side_map["right"]))
 
-            results = await asyncio.gather(*tasks) if tasks else []
-            # Map results back to sides
+            # return_exceptions=True: one side failing doesn't cancel the other
+            raw_results = await asyncio.gather(*tasks, return_exceptions=True) if tasks else []
+            
+            # Map results back to sides (handle exceptions)
+            results = []
+            for r in raw_results:
+                if isinstance(r, Exception):
+                    logger.warning("run_side raised: %s: %s", type(r).__name__, r)
+                    results.append([])
+                else:
+                    results.append(r)
+            
             left = results[0] if "left" in side_map else []
-            right = results[1] if "right" in side_map and len(results) > 1 else results[0] if "right" in side_map and len(results) == 1 else []
+            has_right = "right" in side_map
+            if has_right:
+                right = results[1] if len(results) > 1 else results[0]
+            else:
+                right = []
             if should_stop():
                 run["status"] = "cancelled"
                 run["stage"] = "cancelled"
@@ -474,7 +488,8 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             if run.get("left_error") or run.get("right_error"):
                 errors = [run.get("left_error"), run.get("right_error")]
                 run["error"] = " | ".join(error for error in errors if error)
-                run["status"] = "failed" if (run.get("left_error") and (not right_task or run.get("right_error"))) else "partial_completed"
+                both_failed = run.get("left_error") and (not has_right or run.get("right_error"))
+                run["status"] = "failed" if both_failed else "partial_completed"
                 run["stage"] = run["status"]
             else:
                 run["status"] = "completed"
@@ -509,7 +524,7 @@ async def process_run(run_id: str, video_path: str, systems: list, direction: st
             run["error"] = str(exc)
             logger.exception("run %s failed", run_id)
     finally:
-        if os.path.exists(video_path):
+        if is_temp and os.path.exists(video_path):
             os.remove(video_path)
 
 
@@ -522,6 +537,56 @@ async def health():
         "config_loaded": config_loaded(),
         "config_path": config_path(),
     }
+
+
+def get_datasets_dir() -> Path:
+    """Return the datasets directory path (repo_root/datasets)."""
+    return ROOT_DIR / "datasets"
+
+
+@app.get("/api/audio-library")
+async def audio_library():
+    """List audio files in datasets/ directory, grouped by subfolder."""
+    datasets_dir = get_datasets_dir()
+    if not datasets_dir.exists():
+        return {"folders": {}, "base_path": str(datasets_dir)}
+    
+    folders = {}
+    for sub in sorted(datasets_dir.iterdir()):
+        if not sub.is_dir():
+            continue
+        files = []
+        for f in sorted(sub.iterdir()):
+            if f.is_file() and is_supported_audio(f.name):
+                stat = f.stat()
+                files.append({
+                    "name": f.name,
+                    "path": f"{sub.name}/{f.name}",
+                    "size": stat.st_size,
+                    "size_mb": round(stat.st_size / 1024 / 1024, 1),
+                    "modified": stat.st_mtime,
+                })
+        if files:
+            folders[sub.name] = files
+    
+    return {"folders": folders, "base_path": str(datasets_dir)}
+
+
+@app.get("/api/audio-file")
+async def audio_file(path: str = ""):
+    """Stream an audio file from datasets/ directory for browser playback."""
+    if not path:
+        return JSONResponse(status_code=400, content={"detail": "path parameter is required"})
+    # Prevent path traversal: only allow folder/filename format
+    parts = path.replace("\\", "/").split("/")
+    if len(parts) != 2 or ".." in parts:
+        return JSONResponse(status_code=400, content={"detail": "invalid path format"})
+    folder, filename = parts
+    full_path = get_datasets_dir() / folder / filename
+    if not full_path.exists() or not is_supported_audio(full_path.name):
+        return JSONResponse(status_code=404, content={"detail": f"file not found: {path}"})
+    media_type = "audio/wav" if filename.lower().endswith((".wav", ".wave")) else "audio/mpeg"
+    return FileResponse(str(full_path), media_type=media_type, filename=filename)
 
 
 @app.get("/api/config")
@@ -668,6 +733,27 @@ async def update_config(payload: Dict[str, Any]):
     return await get_config()
 
 
+@app.put("/api/config/external_services")
+async def update_external_service(payload: Dict[str, Any]):
+    """Update a single external service's config (api_key, label) by type.
+
+    If api_key is empty, the existing key is preserved.
+    """
+    from .config import update_external_service as _update_ext
+    stype = str(payload.get("type") or "").strip().lower()
+    if not stype:
+        return JSONResponse(status_code=400, content={"detail": "type is required"})
+    label = str(payload.get("label") or "").strip()
+    api_key = str(payload.get("api_key") or "").strip()
+    try:
+        _update_ext(stype, label, api_key)
+    except Exception as exc:
+        logger.exception("failed to persist external service config")
+        return JSONResponse(status_code=500, content={"detail": str(exc)})
+    notify_config_watchers()
+    return {"ok": True, "type": stype}
+
+
 # In-process subscribers for the "config changed" signal.  Hooks registered via
 # ``add_config_listener`` will be invoked after a successful PUT so other parts
 # of the server (e.g. log_fetcher caches) can re-read paths / endpoints.
@@ -699,10 +785,22 @@ async def create_upload(video: UploadFile = File(...)):
 
 
 @app.post("/api/runs")
-async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFile] = File(None), upload_id: str = Form(""), systems: str = Form("[]"), direction: str = Form("zh2en"), conference_id: str = Form("")):
+async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFile] = File(None), upload_id: str = Form(""), audio_path: str = Form(""), systems: str = Form("[]"), direction: str = Form("zh2en"), conference_id: str = Form("")):
     run_id = f"run_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
+    is_temp = True
     upload = UPLOADS.pop(upload_id, None) if upload_id else None
-    if upload:
+    if audio_path:
+        # Server-side file from datasets/
+        safe_path = Path(audio_path).name  # prevent path traversal
+        folder = audio_path.split("/")[0] if "/" in audio_path else ""
+        if folder:
+            safe_path = Path(folder) / Path(audio_path).name
+        full_path = get_datasets_dir() / safe_path
+        if not full_path.exists() or not is_supported_audio(full_path.name):
+            return JSONResponse(status_code=400, content={"detail": f"audio file not found in datasets: {audio_path}"})
+        video_path = str(full_path)
+        is_temp = False
+    elif upload:
         video_path = upload["path"]
     elif video:
         if not is_supported_audio(video.filename or ""):
@@ -712,7 +810,7 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
             shutil.copyfileobj(video.file, output)
         video_path = temp.name
     else:
-        return JSONResponse(status_code=400, content={"detail": "video or upload_id is required"})
+        return JSONResponse(status_code=400, content={"detail": "video, upload_id, or audio_path is required"})
     try:
         parsed_systems = json.loads(systems)
     except json.JSONDecodeError:
@@ -720,7 +818,7 @@ async def create_run(background_tasks: BackgroundTasks, video: Optional[UploadFi
     direction = direction if direction in {"zh2en", "en2zh"} else "zh2en"
     conference_id = conference_id.strip() or f"simcompare_{time.strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(2)}"
     RUNS[run_id] = {"run_id": run_id, "conference_id": conference_id, "status": "queued", "stage": "queued", "progress": 0, "completed_chunks": 0, "audio_sent_ms": 0, "audio_total_ms": 0, "audio_progress": {}, "systems": parsed_systems, "direction": direction, "cancelled": False, "stream_started": False, "created_at": time.time()}
-    background_tasks.add_task(process_run, run_id, video_path, parsed_systems, direction, conference_id)
+    background_tasks.add_task(process_run, run_id, video_path, parsed_systems, direction, conference_id, is_temp)
     return {"run_id": run_id, "status": "queued", "conference_id": conference_id}
 
 
@@ -765,12 +863,84 @@ async def cancel_run(run_id: str):
     return {"run_id": run_id, "status": run.get("status"), "cancelled": True}
 
 
+@app.delete("/api/runs/{run_id}")
+async def delete_run(run_id: str):
+    run = RUNS.get(run_id)
+    if not run:
+        return JSONResponse(status_code=404, content={"detail": "run not found"})
+    if run.get("status") in {"queued", "running"}:
+        return JSONResponse(status_code=400, content={"detail": "cannot delete a running task, cancel it first"})
+    del RUNS[run_id]
+    return {"run_id": run_id, "deleted": True}
+
+
 @app.get("/api/runs/{run_id}/chunks")
 async def get_chunks(run_id: str):
     run = RUNS.get(run_id)
     if not run:
         return JSONResponse(status_code=404, content={"detail": "run not found"})
     return {"left": run.get("left", []), "right": run.get("right", [])}
+
+
+@app.get("/api/runs/{run_id}/export")
+async def export_run(run_id: str, format: str = "txt"):
+    """Export ASR/MT results as txt or json."""
+    run = RUNS.get(run_id)
+    if not run:
+        return JSONResponse(status_code=404, content={"detail": "run not found"})
+
+    left = run.get("left", [])
+    right = run.get("right", [])
+    systems = run.get("systems", [])
+    left_label = systems[0].get("label", "A") if systems and isinstance(systems[0], dict) else "A"
+    right_label = systems[1].get("label", "B") if len(systems) > 1 and isinstance(systems[1], dict) else "B"
+    direction = run.get("direction", "zh2en")
+
+    if format == "json":
+        import json as _json
+        data = {
+            "run_id": run_id,
+            "conference_id": run.get("conference_id", ""),
+            "direction": direction,
+            "created_at": run.get("created_at", 0),
+            "left": {"label": left_label, "chunks": left},
+            "right": {"label": right_label, "chunks": right},
+        }
+        return PlainTextResponse(
+            _json.dumps(data, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={run_id}.json"},
+        )
+
+    # Default: txt format
+    lines = []
+    lines.append(f"# SimCompare Export")
+    lines.append(f"# Run: {run_id}")
+    lines.append(f"# Direction: {direction}")
+    lines.append(f"# Created: {run.get('created_at', 0)}")
+    lines.append("")
+    lines.append(f"===== {left_label} (A) =====")
+    for chunk in left:
+        t_start = chunk.get("start", 0)
+        asr_text = chunk.get("asr", "")
+        mt_text = chunk.get("mt", "")
+        lines.append(f"[{t_start}ms] ASR: {asr_text}")
+        lines.append(f"[{t_start}ms] MT:  {mt_text}")
+        lines.append("")
+    lines.append(f"===== {right_label} (B) =====")
+    for chunk in right:
+        t_start = chunk.get("start", 0)
+        asr_text = chunk.get("asr", "")
+        mt_text = chunk.get("mt", "")
+        lines.append(f"[{t_start}ms] ASR: {asr_text}")
+        lines.append(f"[{t_start}ms] MT:  {mt_text}")
+        lines.append("")
+
+    return PlainTextResponse(
+        "\n".join(lines),
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={run_id}.txt"},
+    )
 
 
 @app.get("/api/runs/{run_id}/debug/{side}/{chunk_id}")

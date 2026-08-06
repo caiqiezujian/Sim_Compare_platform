@@ -1,8 +1,8 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  AudioLines, Check, ChevronDown, CircleHelp, Clock3, FileAudio,
-  Gauge, GitCompareArrows, History, Info, Languages, LayoutDashboard,
+  AudioLines, Check, ChevronDown, CircleHelp, Clock3, Download, FileAudio,
+  FolderOpen, Gauge, GitCompareArrows, History, Info, Languages, LayoutDashboard,
   Link2, ListFilter, LoaderCircle, Logs, Maximize2, Pencil, Play, Plus,
   RotateCcw, Search, Settings2, SlidersHorizontal, TerminalSquare,
   UploadCloud, Volume2, VolumeX, X
@@ -102,7 +102,7 @@ function buildTimelineLayout(rows) {
   }
 }
 
-function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
+function BenchmarkPanel({ leftItems, rightItems, slotService, running, onSave }) {
   const leftBoxRef = useRef(null)
   const rightBoxRef = useRef(null)
 
@@ -140,7 +140,7 @@ function BenchmarkPanel({ leftItems, rightItems, slotService, running }) {
 
   return (
     <section className="benchmark-panel">
-      <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> LIVE OUTPUT</div><h2>实时结果</h2></div></div>
+      <div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> LIVE OUTPUT</div><h2>实时结果</h2></div><div className="panel-tools"><button className="small-tool" title="保存文本流结果" onClick={onSave} disabled={!leftItems.length && !rightItems.length}><Download size={15} /> 保存</button></div></div>
       <div className="benchmark-grid">
         {renderBox(leftText, leftLabel, 'cyan', leftBoxRef)}
         {renderBox(rightText, rightLabel, 'violet', rightBoxRef)}
@@ -167,6 +167,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('compare')
   const [activeRoute, setActiveRoute] = useState('compare')
   const [viewTab, setViewTab] = useState('timeline')
+  const [viewMode, setViewMode] = useState('idle')
+  const [replayRunId, setReplayRunId] = useState('')
   const [selectedChunk, setSelectedChunk] = useState('')
   const [selectedSide, setSelectedSide] = useState('left')
   const [query, setQuery] = useState('')
@@ -195,6 +197,11 @@ function App() {
   const [uploadState, setUploadState] = useState('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
+  const [audioLibrary, setAudioLibrary] = useState(null)
+  const [showAudioLibrary, setShowAudioLibrary] = useState(false)
+  const [selectedAudioPath, setSelectedAudioPath] = useState('')
+  const [audioFolderExpanded, setAudioFolderExpanded] = useState({})
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [debugInfo, setDebugInfo] = useState(null)
   const [debugLoading, setDebugLoading] = useState(false)
   const [leftItems, setLeftItems] = useState([])
@@ -267,8 +274,11 @@ function App() {
 
   useEffect(() => {
     if (!video) {
-      setMediaUrl('')
-      setMediaPlaying(false)
+      // Don't clear mediaUrl if using a server-side audio file
+      if (!selectedAudioPath) {
+        setMediaUrl('')
+        setMediaPlaying(false)
+      }
       return undefined
     }
     const url = URL.createObjectURL(video)
@@ -320,14 +330,37 @@ function App() {
   useEffect(() => {
     if (!serverRunId) return undefined
     let disposed = false
+    let pollStartTime = Date.now()
+    let lastProgressTime = Date.now()
+    let lastProgressValue = 0
+    const MAX_POLL_DURATION = 300000  // 5 min max polling
+    const STALL_THRESHOLD = 60000     // 60s no progress change = stalled
+
     const poll = async () => {
+      if (disposed) return
+      // Max polling duration exceeded
+      if (Date.now() - pollStartTime > MAX_POLL_DURATION) {
+        setRunning(false)
+        setServerRunId(null)
+        notify('任务超时（5分钟无完成），已保留当前结果')
+        return
+      }
       try {
-        const response = await fetch(`${API_BASE}/api/runs/${serverRunId}`)
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10000)
+        const response = await fetch(`${API_BASE}/api/runs/${serverRunId}`, { signal: controller.signal })
+        clearTimeout(timeout)
         if (!response.ok) throw new Error('status')
         const run = await response.json()
         if (disposed) return
-        setProgress(run.progress || 0)
+        const newProgress = run.progress || 0
+        setProgress(newProgress)
         setRunStage(run.stage || run.status || 'running')
+        // Track progress stall
+        if (newProgress !== lastProgressValue) {
+          lastProgressValue = newProgress
+          lastProgressTime = Date.now()
+        }
         if (run.stream_started && mediaArmedRunId === serverRunId) {
           setMediaArmedRunId(null)
           playSourceMediaFromStart()
@@ -356,8 +389,14 @@ function App() {
           notify(`任务执行失败：${run.error || '请查看后端窗口日志'}`)
         } else if (run.progress >= 100 || run.stage === 'translating') {
           setRunning(false)
+          // Keep polling for final results — but check stall
+          if (Date.now() - lastProgressTime > STALL_THRESHOLD) {
+            setServerRunId(null)
+            notify('翻译结果等待超时，已保留当前结果')
+          }
         }
-      } catch {
+      } catch (err) {
+        if (err?.name === 'AbortError') return  // timeout, just skip this poll
         if (!disposed) {
           setRunning(false)
           setServerRunId(null)
@@ -369,7 +408,7 @@ function App() {
     poll()
     const timer = window.setInterval(poll, 200)
     return () => { disposed = true; window.clearInterval(timer) }
-  }, [serverRunId, mediaArmedRunId, mediaMuted, activeRoute])
+  }, [serverRunId, mediaArmedRunId, mediaMuted])
 
   const selectedLeft = leftItems.find(item => item.id === selectedChunk) || leftItems[0]
   const selectedRight = rightItems.find(item => item.id === selectedChunk) || rightItems[0]
@@ -391,13 +430,13 @@ function App() {
     selectedDebugMetrics.dur_vad !== undefined ? `VAD=${selectedDebugMetrics.dur_vad}s` : '',
     selectedDebugMetrics.concat_wav_duration !== undefined ? `concat=${selectedDebugMetrics.concat_wav_duration}s` : '',
   ].filter(Boolean)
-  const progressLabel = running ? runStage : progress >= 100 ? 'completed' : 'idle'
+  const progressLabel = running ? (progress >= 100 ? 'finalizing' : runStage) : progress >= 100 ? 'completed' : 'idle'
   const mediaStateLabel = mediaPlaying ? 'playing' : uploadState === 'uploading' ? 'loading' : uploadState === 'failed' ? 'load failed' : mediaUrl ? 'ready' : 'no media'
   const uploadProgressWidth = uploadState === 'failed' ? 100 : uploadProgress
-  const audioPanelMode = uploadState === 'uploading' || uploadState === 'ready' || uploadState === 'failed' ? 'upload' : 'run'
-  const audioPanelStatus = uploadState === 'uploading' ? 'UPLOADING' : uploadState === 'ready' ? 'UPLOAD READY' : uploadState === 'failed' ? 'UPLOAD FAILED' : running ? 'STREAMING' : 'READY'
+  const audioPanelMode = (uploadState === 'uploading' || uploadState === 'ready' || uploadState === 'failed') && !selectedAudioPath ? 'upload' : 'run'
+  const audioPanelStatus = uploadState === 'uploading' ? 'UPLOADING' : uploadState === 'ready' && !selectedAudioPath ? 'UPLOAD READY' : uploadState === 'failed' ? 'UPLOAD FAILED' : running ? 'STREAMING' : selectedAudioPath ? 'READY' : 'READY'
   const audioPanelProgress = audioPanelMode === 'upload' ? uploadProgressWidth : running ? progress : 0
-  const audioPanelProgressText = uploadState === 'uploading' ? `${uploadProgress}%` : uploadState === 'ready' ? '100%' : uploadState === 'failed' ? 'error' : running ? `${Math.min(progress, 100)}%` : '0%'
+  const audioPanelProgressText = uploadState === 'uploading' ? `${uploadProgress}%` : uploadState === 'ready' && !selectedAudioPath ? '100%' : uploadState === 'failed' ? 'error' : running ? `${Math.min(progress, 100)}%` : '0%'
   const audioPanelLabel = uploadState === 'uploading' ? 'uploading audio' : uploadState === 'ready' ? 'audio ready' : uploadState === 'failed' ? 'upload failed' : progressLabel
 
   const notify = (message) => {
@@ -492,13 +531,35 @@ function App() {
     if (type === 'huawei' && !url) return
     if (type !== 'grpc' && type !== 'huawei' && !api_key) return
     const palette = ['amber', 'green', 'pink', 'teal']
-    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, type, api_key, has_api_key: !!api_key, language: 'zh → en', color: palette[systems.length % palette.length], enabled: true, debug_log, debug_root }
+    const customCount = systems.filter(s => !s.id.startsWith('system-') && !s.id.startsWith('ext-')).length
+    const next = { id: `system-${Date.now()}`, label, name: 'Custom endpoint', url, type, api_key, has_api_key: !!api_key, language: 'zh → en', color: palette[customCount % palette.length], enabled: true, debug_log, debug_root }
     setSystems(items => [...items, next])
     setSelectedSystem(next.id)
     setShowSystemModal(false)
     setNewServiceType('grpc')
     setNewServiceGroup(null)
     notify(type === 'grpc' ? 'gRPC 服务已加入对比' : `${SERVICE_TYPE_LABEL[type] || type} 服务已加入对比`)
+  }
+
+  // Persist an external service's config (api_key, label) back to config file.
+  // Finds the service by type in external_services and updates it.
+  const persistExternalService = async (systemId, updated) => {
+    // systemId format: "ext-{type}-{i}" → extract type
+    const parts = systemId.split('-')
+    const type = parts.length >= 2 ? parts[1] : ''
+    if (!type) throw new Error('cannot determine service type from id')
+
+    const payload = {
+      type,
+      label: updated.label || '',
+      api_key: updated.api_key || '',
+    }
+    const response = await fetch(`${API_BASE}/api/config/external_services`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error('server error')
   }
 
   // Persist the two compare slots (left + right) to the backend config file.
@@ -567,7 +628,7 @@ function App() {
     const debug_root = type === 'grpc' ? String(form.get('debug_root') || '').trim() : ''
     const { system, isSlot, side } = editingService
 
-    const updated = { label, type, url, api_key, has_api_key: api_key ? true : editingService.has_api_key, debug_log, debug_root }
+    const updated = { label, type, url, api_key, has_api_key: !!api_key || !!system.has_api_key, debug_log, debug_root }
     let snapshot = null
     setSystems(items => {
       snapshot = items
@@ -575,12 +636,14 @@ function App() {
     })
 
     if (isSlot) {
-      const otherSystem = side === 'left' ? systems.find(s => s.id === slotB) : systems.find(s => s.id === slotA)
+      // Slot services (system-a/system-b) are gRPC slots defined in config.
+      // Editing them only updates in-memory state — never write back to config
+      // (prevents overwriting the gRPC slot with external model config).
+      notify('槽位服务已更新（仅本地内存，不写回 config）')
+    } else if (system.id?.startsWith('ext-')) {
+      // External services — persist key back to config
       try {
-        const otherEntry = { label: otherSystem?.label || '', type: otherSystem?.type || 'grpc', url: otherSystem?.url || '', api_key: '', debug_log: otherSystem?.debug_log || '', debug_root: otherSystem?.debug_root || '' }
-        const leftEntry = side === 'left' ? updated : otherEntry
-        const rightEntry = side === 'right' ? updated : otherEntry
-        await persistSlots(leftEntry, rightEntry)
+        await persistExternalService(system.id, updated)
         notify('服务配置已保存到 config')
       } catch (err) {
         if (snapshot) setSystems(snapshot)
@@ -595,10 +658,17 @@ function App() {
 
   const deleteCustomService = (system) => {
     if (system.id === 'system-a' || system.id === 'system-b') return
-    setSystems(items => items.filter(item => item.id !== system.id))
-    if (selectedSystem === system.id) setSelectedSystem('system-a')
-    if (slotA === system.id) setSlotA('system-a')
-    if (slotB === system.id) setSlotB('system-b')
+    setConfirmDelete({ type: 'service', id: system.id, label: system.label })
+  }
+
+  const executeDeleteService = () => {
+    const id = confirmDelete?.id
+    if (!id) return
+    setSystems(items => items.filter(item => item.id !== id))
+    if (selectedSystem === id) setSelectedSystem('system-a')
+    if (slotA === id) setSlotA('system-a')
+    if (slotB === id) setSlotB('system-b')
+    setConfirmDelete(null)
     notify('已删除自定义服务')
   }
 
@@ -629,6 +699,49 @@ function App() {
     }
   }
 
+  const exportResults = (format = 'txt') => {
+    const runId = serverRunId || lastRunId || replayRunId
+    if (!runId) {
+      notify('没有可导出的任务')
+      return
+    }
+    const url = `${API_BASE}/api/runs/${runId}/export?format=${format}`
+    window.open(url, '_blank')
+  }
+
+  const exportStreamText = () => {
+    const leftLabel = slotService('A')?.label || '系统 A'
+    const rightLabel = slotService('B')?.label || '系统 B'
+    const buildText = (items) => ({
+      asr: items.map(c => c.asr).filter(Boolean).join(''),
+      mt: items.map(c => c.mt).filter(Boolean).join(''),
+    })
+    const leftText = buildText(leftItems)
+    const rightText = buildText(rightItems)
+    const lines = [
+      '# SimCompare 文本流结果',
+      `# 导出时间: ${new Date().toLocaleString()}`,
+      `# 方向: ${direction}`,
+      '',
+      `===== ${leftLabel} (A) =====`,
+      `ASR: ${leftText.asr}`,
+      `MT:  ${leftText.mt}`,
+      '',
+      `===== ${rightLabel} (B) =====`,
+      `ASR: ${rightText.asr}`,
+      `MT:  ${rightText.mt}`,
+      '',
+    ]
+    const blob = new Blob(['\n'.join ? lines.join('\n') : lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `simcompare_stream_${Date.now()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    notify('文本流已保存')
+  }
+
   const resetRun = () => {
     const activeRunId = serverRunId
     if (mediaRef.current) {
@@ -647,12 +760,15 @@ function App() {
     setUploadProgress(0)
     setUploadError('')
     setVideo(null)
+    setSelectedAudioPath('')
     setLeftItems([])
     setRightItems([])
     setDebugInfo(null)
     setDebugLoading(false)
     setSelectedChunk('')
     setSelectedSide('left')
+    setViewMode('idle')
+    setReplayRunId('')
     if (fileInputRef.current) fileInputRef.current.value = ''
     cancelServerRun(activeRunId)
     notify(activeRunId ? '已停止并重置当前任务' : '已重置当前任务')
@@ -666,8 +782,10 @@ function App() {
     setRunning(true)
     setRunStage('uploading')
     setProgress(1)
-    if (!video) {
-      notify('当前使用演示音频，可直接查看交互')
+    setViewMode('live')
+    setReplayRunId('')
+    if (!video && !selectedAudioPath) {
+      notify('请选择音频文件（本地上传或从服务器选择）')
       setRunning(false)
       setRunStage('idle')
       return
@@ -710,8 +828,13 @@ function App() {
       // Select the side that has a service, so inspector defaults to it
       setSelectedSide(leftSystem ? 'left' : 'right')
       const form = new FormData()
-      if (uploadId) form.append('upload_id', uploadId)
-      else form.append('video', video)
+      if (selectedAudioPath) {
+        form.append('audio_path', selectedAudioPath)
+      } else if (uploadId) {
+        form.append('upload_id', uploadId)
+      } else if (video) {
+        form.append('video', video)
+      }
       form.append('systems', JSON.stringify(enabled))
       form.append('direction', direction)
       form.append('conference_id', conferenceId.trim())
@@ -775,13 +898,17 @@ function App() {
         setServerRunId(runId)
         setRunning(true)
         setRunStage(run.stage || run.status || 'running')
+        setViewMode('live')
+        setReplayRunId('')
         notify(`已恢复实时任务 ${runId}`)
       } else {
         setServerRunId(null)
         setRunning(false)
         setProgress(run.progress || 0)
         setRunStage(run.stage || run.status || 'idle')
-        notify(`已加载任务 ${runId}`)
+        setViewMode('replay')
+        setReplayRunId(runId)
+        notify(`已加载历史任务 ${runId}`)
       }
     } catch {
       notify('加载历史任务失败')
@@ -791,22 +918,83 @@ function App() {
   const goToCompare = () => {
     setActiveRoute('compare')
     setActiveTab('compare')
-    const activeRun = runHistory.find(r => r && !['completed', 'cancelled', 'partial_completed', 'failed'].includes(r.status))
-    if (activeRun && activeRun.run_id !== serverRunId) {
-      setLeftItems([])
-      setRightItems([])
-      setServerRunId(activeRun.run_id)
-      setRunning(true)
-      setLastRunId(activeRun.run_id)
-      setRunStage(activeRun.stage || activeRun.status || 'running')
-      notify(`已恢复实时任务 ${activeRun.run_id}`)
+  }
+
+  const startNewComparison = () => {
+    resetRun()
+    setViewMode('idle')
+    setReplayRunId('')
+  }
+
+  const deleteHistoryRun = (runId, event) => {
+    event.stopPropagation()
+    setConfirmDelete({ type: 'history', id: runId, label: runId })
+  }
+
+  const executeDeleteHistory = async () => {
+    const runId = confirmDelete?.id
+    if (!runId) return
+    try {
+      const res = await fetch(`${API_BASE}/api/runs/${runId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch({})
+        notify(`删除失败：${data.detail || '未知错误'}`)
+        setConfirmDelete(null)
+        return
+      }
+      if (replayRunId === runId) {
+        setReplayRunId('')
+        setViewMode('idle')
+        setLeftItems([])
+        setRightItems([])
+      }
+      setConfirmDelete(null)
+      notify('任务已删除')
+      fetchRunHistory()
+    } catch {
+      notify('删除失败：网络错误')
+      setConfirmDelete(null)
     }
+  }
+
+  const confirmDeleteAction = () => {
+    if (confirmDelete?.type === 'service') executeDeleteService()
+    else if (confirmDelete?.type === 'history') executeDeleteHistory()
+  }
+
+  const fetchAudioLibrary = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/audio-library`)
+      if (res.ok) setAudioLibrary(await res.json())
+    } catch { /* ignore */ }
+  }
+
+  const selectServerAudio = (path, name) => {
+    setSelectedAudioPath(path)
+    setVideo(null)
+    setMediaUrl(`${API_BASE}/api/audio-file?path=${encodeURIComponent(path)}`)
+    setMediaPlaying(false)
+    setUploadId('')
+    setUploadState('idle')
+    setUploadError('')
+    setProgress(0)
+    setRunStage('idle')
+    setMediaArmedRunId(null)
+    setLeftItems([])
+    setRightItems([])
+    setDebugInfo(null)
+    setDebugLoading(false)
+    setSelectedChunk('')
+    setSelectedSide('left')
+    notify(`已选择服务器文件 ${name}`)
+    setShowAudioLibrary(false)
   }
 
   const handleFile = event => {
     const file = event.target.files?.[0]
     if (file) {
       setVideo(file)
+      setSelectedAudioPath('')
       setProgress(0)
       setUploadProgress(0)
       setUploadError('')
@@ -845,7 +1033,7 @@ function App() {
     <div className={`run-bar source-run-bar ${uploadState === 'failed' ? 'failed' : ''}`}>
       <div className="source-run-top">
         <div className="run-status"><span className={running || uploadState === 'uploading' ? 'pulse-dot' : 'complete-dot'} /> {audioPanelStatus}</div>
-        <span className="file-name"><FileAudio size={14} /> {video?.name || 'sample_audio.wav'}</span>
+        <span className="file-name"><FileAudio size={14} /> {video?.name || selectedAudioPath?.split('/').pop() || 'sample_audio.wav'}</span>
         <span className="media-state">{mediaStateLabel}</span>
       </div>
       <div className="source-run-bottom">
@@ -946,10 +1134,18 @@ function App() {
 
       <main className="main-content">
         {activeRoute === 'compare' && activeTab === 'compare' && (<>
-        <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? '运行中…' : '开始对比'}</button></div></section>
+        <section className="page-heading"><div><div className="eyebrow"><span>DEBUG SESSION</span><span className="slash">/</span><span>NEW COMPARISON</span></div><h1>同传对比 <em>debug</em></h1><p>并行观察转录与翻译结果，快速定位差异产生的时间点。</p></div><div className="heading-actions"><button className="ghost-button" onClick={resetRun}><RotateCcw size={15} /> 重置</button><button className="primary-button" onClick={startRun} disabled={running}><span className="button-glow" />{running ? <LoaderCircle className="spin" size={16} /> : <Play size={15} fill="currentColor" />} {running ? (progress >= 100 ? '翻译收尾中…' : '运行中…') : '开始对比'}</button></div></section>
+
+        {viewMode === 'replay' && replayRunId && (
+          <div className="replay-banner">
+            <History size={15} />
+            <span>正在查看历史任务 <strong>{replayRunId}</strong></span>
+            <button className="ghost-button" onClick={startNewComparison}><Plus size={14} /> 新建对比</button>
+          </div>
+        )}
 
         <section className="control-grid">
-          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>上传 WAV / MP3 或视频（MP4/MOV 等），后端会抽音并按音频 chunk 发送至服务。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><button className={`dropzone ${video ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : '拖拽文件到这里，或点击选择'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : '支持 WAV / MP3 / MP4 / MOV · 最大 2 GB'}</small></div><ChevronDown size={16} className="drop-chevron" /></button>{runStatusBar}</div>
+          <div className="control-card source-card"><div className="card-top"><div className="card-title"><span className="step-number">01</span><div><h3>选择音视频文件</h3><p>本地上传或从服务器 datasets/ 目录选择。</p></div></div><FileAudio size={20} className="muted-icon" /></div><input ref={fileInputRef} type="file" accept=".wav,.wave,.mp3,.mp4,.mov,.m4a,.m4v,.webm,.mkv,.avi,.flv,audio/wav,audio/mpeg,video/mp4,video/quicktime,video/webm" hidden onChange={handleFile} /><div className="source-actions"><button className={`dropzone ${video || selectedAudioPath ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><div className="upload-icon">{video ? <FileAudio size={22} /> : <UploadCloud size={22} />}</div><div><strong>{video ? video.name : selectedAudioPath ? selectedAudioPath.split('/').pop() : '本地上传'}</strong><small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · 已就绪` : selectedAudioPath ? '服务器文件 · 已就绪' : '点击选择本地文件'}</small></div></button><button className="server-pick-btn" onClick={() => { fetchAudioLibrary(); setShowAudioLibrary(true) }}><FolderOpen size={18} /> 服务器文件</button></div>{runStatusBar}</div>
           <div className="control-card service-card"><div className="card-top"><div className="card-title"><span className="step-number">02</span><div><div className="service-title-row"><h3>配置对比服务</h3><button type="button" className={`direction-switch ${direction === 'en2zh' ? 'is-right' : ''}`} aria-label="切换翻译方向" onClick={() => setDirection(value => value === 'zh2en' ? 'en2zh' : 'zh2en')}><span className="direction-thumb" /><span className="direction-option">zh2en</span><span className="direction-option">en2zh</span></button></div><p>选择两个同传服务（gRPC 或 API 型）进行对比，同时发起流式调用。</p></div></div><Link2 size={20} className="muted-icon" /></div><div className="service-selects">{['A', 'B'].map(slot => { const system = slotService(slot); if (!system) return null; const meta = serviceDisplay(system); return <div className="endpoint-row" key={slot}><span className={`endpoint-tag ${slot === 'A' ? 'cyan' : 'violet'}`}>{slot}</span><label className="endpoint-input"><span>{system.label}{system.type && system.type !== 'grpc' ? ` · ${SERVICE_TYPE_LABEL[system.type] || system.type}` : ''}</span><input value={meta} readOnly onFocus={() => setSelectedSystem(system.id)} placeholder="未配置" spellCheck="false" /></label><button className="copy-button" title="编辑服务" onClick={() => openEditService(system)}><Pencil size={14} /></button></div> })}</div><div className="service-bottom-row"><label className="conference-input service-conference-input"><span>conference_id</span><input value={conferenceId} onChange={event => setConferenceId(event.target.value)} placeholder="my_test_001" spellCheck="false" /></label><button className="inline-add" onClick={() => setShowSystemModal(true)}><Plus size={14} /> 添加服务</button></div><div className="service-conference-hint">{'作为 gRPC sid 和 userinfo.conferenceId 传入，用于定位 debug/{conference_id}/audio/{sn}.wav'}</div></div>
         </section>
 
@@ -959,12 +1155,12 @@ function App() {
         </div>
 
         {viewTab === 'timeline' && (<>
-        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{serviceDisplay(slotService('A'))}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{serviceDisplay(slotService('B'))}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
+        <section className="comparison-panel"><div className="panel-heading"><div><div className="section-kicker"><span className="kicker-line" /> TIMELINE OUTPUT</div><h2>结果时间轴</h2></div><div className="panel-tools"><div className="search-box"><Search size={15} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索转录或翻译…" /></div><button className="small-tool"><ListFilter size={15} /> 筛选</button><button className="small-tool icon-only"><SlidersHorizontal size={15} /></button><button className="small-tool" title="保存时间轴结果" onClick={() => exportResults('txt')} disabled={!leftItems.length && !rightItems.length}><Download size={15} /> 保存</button><button className="small-tool icon-only" title="全屏时间轴" onClick={() => setTimelineFullscreen(true)}><Maximize2 size={15} /></button></div></div><div className="timeline-header"><div className="group left"><span className="system-badge cyan">A</span><span className="label">{slotService('A')?.label || '系统 A'}</span><span className="url">{serviceDisplay(slotService('A'))}</span><span className="lat">ASR end</span></div><div className="spacer" /><div className="axis-label">ABSOLUTE ASR END TIME</div><div className="spacer" /><div className="group right"><span className="lat">ASR end</span><span className="url">{serviceDisplay(slotService('B'))}</span><span className="label">{slotService('B')?.label || '系统 B'}</span><span className="system-badge violet">B</span></div></div><div ref={timelineListRef} className="timeline-list absolute-timeline" onScroll={handleTimelineScroll}><div className="absolute-axis" /><div style={{ position: 'relative', height: `${timelineLayout.height}px`, minHeight: '100%' }}>{timelineLayout.rows.map((row, index) => <TimelineEventRow key={row.id} row={row} isLast={index === timelineLayout.rows.length - 1} selectedChunk={selectedChunk} selectedSide={selectedSide} onSelect={(chunkId, side) => { setSelectedChunk(chunkId); setSelectedSide(side) }} style={{ '--row-top': `${row.top}px`, '--row-height': `${row.height}px` }} />)}</div></div>{timelineLayout.rows.length === 0 && <div className="empty-search">没有找到匹配结果</div>}<div className="timeline-footer"><span><span className="footer-dot cyan" /> A · {leftItems.length} chunks</span><span><span className="footer-dot violet" /> B · {rightItems.length} chunks</span><span className="footer-note"><Info size={13} /> 当前按绝对 ASR 结束时间排布；左右结果各自落在自己的时间点上</span></div></section>
 
         <section className="inspector-panel"><div className="inspector-heading"><div className="inspector-title"><div className="inspect-icon"><Logs size={17} /></div><div><div className="section-kicker"><span className="kicker-line" /> INSPECTOR</div><h2>Chunk 调试详情 <span>#{String(selectedChunkId).replace('chunk-', '')}</span></h2></div></div><div className="inspect-actions"><span className="time-chip"><Clock3 size={13} /> {formatTime(selected?.start || 0)} — {formatTime(selected?.end || 0)}</span><button className="small-tool"><TerminalSquare size={14} /> {debugLoading ? '读取中' : selectedDebug.debug_found ? '服务 debug' : '原始 JSON'}</button></div></div><div className="inspector-grid"><div className="debug-log"><div className="subhead"><span>DEBUG LOG</span><span className="log-live"><span className="mini-live" /> {debugLoading ? 'LOADING DEBUG' : selectedDebug.debug_found ? 'SERVICE DEBUG' : 'STREAM LOG'}</span></div><div className="log-window">{inspectorLogs.map((log, index) => <div className="log-line" key={index}><span className="log-time">{formatTime((selected?.start || 0) + index * 184)}</span><span className={`log-level ${index >= Math.max(0, inspectorLogs.length - 4) ? 'accent' : ''}`}>{index >= Math.max(0, inspectorLogs.length - 4) ? 'DEBUG' : 'INFO'}</span><span>{typeof log === 'string' ? log : (log && log.label ? <>{log.label}: {log.text}</> : JSON.stringify(log))}</span></div>)}<div className="log-cursor">_</div></div></div><div className="audio-debug"><div className="subhead"><span>CONCAT AUDIO</span><span className="audio-format">{selectedDebug.audio_found ? 'DEBUG WAV' : 'WAV · 16 kHz'}</span></div><div className="audio-file"><div className="audio-symbol"><AudioLines size={18} /></div><div><strong>{selectedDebug.audio_file || selected?.audio || `${selectedChunkId || 'chunk'}.wav`}</strong><small>conference={selectedDebug.conference_id || selected?.conference_id || conferenceId} · sn={selectedChunkId || '-'}</small></div><button className="play-circle" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={15} fill="currentColor" /></button></div><div className="waveform">{Array.from({ length: 52 }, (_, i) => <span key={i} style={{ height: `${18 + ((i * 17 + (selected?.start || 0) / 10) % 30)}%` }} />)}</div><div className="debug-metrics"><span>RTF {selectedDebugMetrics.rtf ?? '-'}</span><span>CTC {selectedDebugMetrics.ctc_avg_prob ?? '-'}</span><span>VAD {selectedDebugMetrics.dur_vad ?? '-'}</span><span>concat {selectedDebugMetrics.concat_wav_duration ?? '-'}</span></div><div className="audio-controls"><button className="audio-play" onClick={playDebugAudio} disabled={!debugAudioUrl}><Play size={13} fill="currentColor" /> 播放 concat 音频</button><span>{formatTime(selectedDebugAsr.bg ?? selected?.start ?? 0)}</span><span>{formatTime(selectedDebugAsr.ed ?? selected?.end ?? 0)}</span><Volume2 size={14} /></div></div></div></section>
         </>)}
         {viewTab === 'stream' && (
-          <BenchmarkPanel leftItems={leftItems} rightItems={rightItems} slotService={slotService} running={running} />
+          <BenchmarkPanel leftItems={leftItems} rightItems={rightItems} slotService={slotService} running={running} onSave={() => exportStreamText()} />
         )}
         </>
         )}
@@ -975,7 +1171,7 @@ function App() {
               {historyLoading && runHistory.length === 0 && <div className="empty-search">加载中…</div>}
               {!historyLoading && runHistory.length === 0 && <div className="empty-search">暂无任务历史（后端重启后会清空）</div>}
               {runHistory.map(run => (
-                <div key={run.run_id} className="history-row" onClick={() => loadHistoryRun(run.run_id)}>
+                <div key={run.run_id} className={`history-row ${replayRunId === run.run_id ? 'active-replay' : ''}`} onClick={() => loadHistoryRun(run.run_id)}>
                   <span className={`status-dot status-${run.status || 'unknown'}`}>{run.status || 'unknown'}</span>
                   <div className="history-main">
                     <div className="history-title">{run.conference_id || run.run_id}</div>
@@ -994,7 +1190,10 @@ function App() {
                       ))}
                     </div>
                   </div>
-                  <Play size={16} className="history-go" />
+                  <div className="history-actions">
+                    <Play size={16} className="history-go" />
+                    <button className="history-delete-btn" title="删除任务" onClick={(e) => deleteHistoryRun(run.run_id, e)}><X size={14} /></button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1011,6 +1210,67 @@ function App() {
           </section>
         )}
       </main>
+      {confirmDelete && (
+        <div className="modal-backdrop" onMouseDown={() => setConfirmDelete(null)}>
+          <div className="modal" style={{ maxWidth: 380 }} onMouseDown={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div><h2>确认删除</h2></div>
+              <button className="close-button" onClick={() => setConfirmDelete(null)}><X size={17} /></button>
+            </div>
+            <div style={{ padding: '0 20px 20px' }}>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                {confirmDelete.type === 'service'
+                  ? `确定要删除服务「${confirmDelete.label}」吗？此操作不可撤销。`
+                  : `确定要删除任务「${confirmDelete.label}」吗？删除后无法恢复。`}
+              </p>
+              <div className="modal-actions" style={{ marginTop: 16 }}>
+                <button type="button" className="ghost-button" onClick={() => setConfirmDelete(null)}>取消</button>
+                <button type="button" className="primary-button" style={{ background: '#e0556a' }} onClick={confirmDeleteAction}>确认删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAudioLibrary && (
+        <div className="modal-backdrop" onMouseDown={() => setShowAudioLibrary(false)}>
+          <div className="modal" style={{ maxWidth: 480 }} onMouseDown={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div><div className="section-kicker"><span className="kicker-line" /> SERVER FILES</div><h2>选择服务器音频文件</h2></div>
+              <button className="close-button" onClick={() => setShowAudioLibrary(false)}><X size={17} /></button>
+            </div>
+            <div style={{ maxHeight: 420, overflow: 'auto', padding: '4px 0' }}>
+              {!audioLibrary?.folders || Object.keys(audioLibrary.folders).length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>
+                  <FolderOpen size={28} style={{ marginBottom: 8 }} />
+                  <p>datasets/ 目录为空或不存在</p>
+                  <p style={{ fontSize: 12, marginTop: 4 }}>在服务器仓库根目录创建 datasets/zh2en/ 和 datasets/en2zh/ 文件夹，放入音频文件</p>
+                </div>
+              ) : (
+                Object.entries(audioLibrary.folders).map(([folder, files]) => {
+                  const expanded = audioFolderExpanded[folder]
+                  return (
+                    <div key={folder}>
+                      <button onClick={() => setAudioFolderExpanded(g => ({ ...g, [folder]: !g[folder] }))} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                        <ChevronDown size={14} style={{ transition: 'transform .15s', transform: expanded ? 'none' : 'rotate(-90deg)', color: 'var(--text-3)', flexShrink: 0 }} />
+                        <FolderOpen size={15} style={{ color: 'var(--text-2)', flexShrink: 0 }} />
+                        <strong style={{ fontSize: 13, fontWeight: 600 }}>{folder}</strong>
+                        <small style={{ color: 'var(--text-3)', fontSize: 11 }}>{files.length}</small>
+                      </button>
+                      {expanded && files.map(f => (
+                        <button key={f.path} onClick={() => selectServerAudio(f.path, f.name)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '7px 16px 7px 40px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--panel-3)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <FileAudio size={14} style={{ color: 'var(--cyan)', flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{f.size_mb} MB</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
       {timelineFullscreen && (
         <div className="timeline-fullscreen-overlay" onMouseDown={() => setTimelineFullscreen(false)}>
@@ -1031,7 +1291,7 @@ function App() {
       )}
       {mediaUrl && <video ref={mediaRef} src={mediaUrl} preload="auto" playsInline className="source-media-player" onEnded={() => setMediaPlaying(false)} onPause={() => setMediaPlaying(false)} onPlay={() => setMediaPlaying(true)} />}
       {showSystemModal && <div className="modal-backdrop" onMouseDown={() => setShowSystemModal(false)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> NEW ENDPOINT</div><h2>{newServiceGroup === 'grpc' ? '添加 gRPC 服务' : newServiceGroup === 'huawei' ? '添加华为 WSS 服务' : newServiceGroup === 'api' ? '添加其他厂商模型' : '添加服务'}</h2></div><button className="close-button" onClick={() => setShowSystemModal(false)}><X size={17} /></button></div><form onSubmit={addSystem}><label>服务名称<input name="label" placeholder="例如：豆包同传 / 我的本地测试版" autoFocus /></label>{newServiceGroup === null && <label>服务类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="grpc">gRPC（内部同传系统）</option><option value="doubao">豆包 Doubao（API）</option><option value="qwen">通义千问 Qwen（API）</option></select></label>}{newServiceGroup === 'api' && <label>模型类型<select value={newServiceType} onChange={event => setNewServiceType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>}{newServiceType === 'grpc' ? <><label>gRPC 地址<input name="url" placeholder="127.0.0.1:7860" required /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" placeholder="/data/debug" spellCheck="false" /></label></details></> : newServiceType === 'huawei' ? <><label>WSS URL<input name="url" placeholder="wss://apigw-beta.huawei.com/ws/apiAsr/plug/audioTranslate?X-HW-ID=...&X-HW-APPKEY=...&appid=...&token=...&langFrom=zh&langTo=en" required spellCheck="false" /></label><div className="modal-hint"><Info size={14} /> 填入完整的华为同传 WSS 连接地址（含鉴权参数），仅保存在本地会话，不会写入 config 文件。</div></> : <label>API Key<input name="api_key" type="password" placeholder="sk-..." required autoComplete="off" /></label>}<div className="modal-hint"><Info size={14} /> {newServiceType === 'grpc' ? '支持 host:port 格式。后端会将此地址传入流式调用。' : 'API Key 仅存储在服务端 config，不会在前端明文展示。API 型服务的调用适配器尚未接入，配置后暂不可运行对比。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setShowSystemModal(false)}>取消</button><button className="primary-button" type="submit"><Plus size={15} /> 添加</button></div></form></div></div>}
-      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑{editingType === 'grpc' ? 'HwMT同传系统' : '其他厂商模型'}{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><input type="hidden" name="type" value={editingType} /><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <><label>模型类型<select value={editingType} onChange={event => setEditingType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="huawei">Huawei · 华为</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>{editingType === 'huawei' ? <><label>WSS URL<input name="url" defaultValue={editingService.url} placeholder="wss://apigw-beta.huawei.com/ws/apiAsr/plug/audioTranslate?X-HW-ID=...&X-HW-APPKEY=...&appid=...&token=...&langFrom=zh&langTo=en" required spellCheck="false" /></label><div className="modal-hint"><Info size={14} /> 填入完整的华为同传 WSS 连接地址（含鉴权参数），仅保存在本地会话，不会写入 config 文件。</div></> : <label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '已配置，留空保持不变' : 'sk-...'} autoComplete="off" /></label>}</>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
+      {editingService && <div className="modal-backdrop" onMouseDown={() => setEditingService(null)}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-head"><div><div className="section-kicker"><span className="kicker-line" /> EDIT ENDPOINT</div><h2>编辑{editingType === 'grpc' ? 'HwMT同传系统' : '其他厂商模型'}{editingService.isSlot ? `（${editingService.side === 'left' ? 'A' : 'B'} 槽位 · 同步到 config）` : '（仅本地）'}</h2></div><button className="close-button" onClick={() => setEditingService(null)}><X size={17} /></button></div><form onSubmit={submitEditService}><input type="hidden" name="type" value={editingType} /><label>服务名称<input name="label" defaultValue={editingService.label} autoFocus required /></label>{editingType === 'grpc' ? <><label>gRPC 地址<input name="url" defaultValue={editingService.url} placeholder="127.0.0.1:7860" required spellCheck="false" /></label><details className="modal-advanced"><summary>debug 路径（可选）</summary><label>debug_log<input name="debug_log" defaultValue={editingService.debug_log} placeholder="/var/log/qwen3_asr.log" spellCheck="false" /></label><label>debug_root<input name="debug_root" defaultValue={editingService.debug_root} placeholder="/data/debug" spellCheck="false" /></label></details></> : <><label>模型类型<select value={editingType} onChange={event => setEditingType(event.target.value)}><option value="doubao">Doubao · 豆包</option><option value="qwen">Qwen · 通义千问</option><option value="huawei">Huawei · 华为</option><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>{editingType === 'huawei' ? <><label>WSS URL<input name="url" defaultValue={editingService.url} placeholder="wss://apigw-beta.huawei.com/ws/apiAsr/plug/audioTranslate?X-HW-ID=...&X-HW-APPKEY=...&appid=...&token=...&langFrom=zh&langTo=en" required spellCheck="false" /></label><div className="modal-hint"><Info size={14} /> 填入完整的华为同传 WSS 连接地址（含鉴权参数），仅保存在本地会话，不会写入 config 文件。</div></> : <label>API Key<input name="api_key" type="password" placeholder={editingService.has_api_key ? '********（已配置，留空保持不变）' : 'sk-...'} autoComplete="off" /></label>}</>}<div className="modal-hint"><Info size={14} /> {editingService.isSlot ? '保存后会写回 simcompare.config.json，团队其它成员 git pull 后即可看到。' : '这只是 sidebar 里的一个便签，不会持久化。'}</div><div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setEditingService(null)}>取消</button><button className="primary-button" type="submit"><Check size={15} /> 保存</button></div></form></div></div>}
     </div>
   )
 }

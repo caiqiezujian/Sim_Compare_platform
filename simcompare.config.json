@@ -1,10 +1,9 @@
 {
   "services": {
     "left": {
-      "label": "OpenAI同传",
-      "type": "openai",
-      "grpc_url": "",
-      "api_key": "k-proj-Sn8dUOolMdkhKtIKlACchgUgEAm-SKVWxzuSePjnoLjXblteWSVoHKCCy9VVSEISti22fAM7OgT3BlbkFJ3wkfhV65aWCHq1eMfR8lMmdxZq4k7wD4QDhiBVeDb4WKPTdI4TW1HYQl5wAMYHh-pL0S6A4AQA",
+      "label": "线上稳定版",
+      "type": "grpc",
+      "grpc_url": "10.185.1.71:16552",
       "debug_log": "",
       "debug_root": ""
     },
@@ -20,12 +19,12 @@
     {
       "label": "通义千问同传",
       "type": "qwen",
-      "api_key": "sk-33c1d03f05744da1bfb55e7aae3c6f28"
+      "api_key": ""
     },
     {
       "label": "Doubao同传",
       "type": "doubao",
-      "api_key": "4d396124-e651-441d-839f-056d585dfbfb"
+      "api_key": ""
     },
     {
       "label": "OpenAI同传",
